@@ -79,15 +79,22 @@ tabela 12px vertical por 16px horizontal. Respiro entre seções 32px.
 
 ### Tipografia aplicada
 
-| Papel | Tamanho / Peso | Família |
+**Família única: Inter** (variável, 400–600) em toda a interface e em todos os números.
+A hierarquia vem de tamanho, peso e cor — não de troca de família.
+
+| Papel | Tamanho / Peso | Tratamento |
 |---|---|---|
-| Título de página | 28px / 600 | Poppins |
-| Título de cartão | 16px / 600 | Poppins |
-| Número de destaque (stat) | 32px / 600 | Inter |
-| Corpo | 14px / 400 | Poppins |
-| Rótulo e cabeçalho de tabela | 12px / 500, letter-spacing 0.02em, maiúsculas | Poppins |
-| Valor em tabela | 14px / 400, tabular-nums | Inter |
-| Total em destaque | 20px / 600, tabular-nums | Inter |
+| Título de página | 28px / 600 | `-0.02em` de letter-spacing |
+| Título de cartão | 16px / 600 | — |
+| Número de destaque (stat) | 32px / 600 | `tabular-nums`, `-0.02em` |
+| Corpo | 14px / 400 | — |
+| Rótulo e cabeçalho de tabela | 12px / 500 | letter-spacing 0.02em, maiúsculas |
+| Valor em tabela | 14px / 400 | `tabular-nums`, alinhado à direita |
+| Total em destaque | 20px / 600 | `tabular-nums` |
+
+Inter tem a contraforma aberta em tamanhos grandes, então títulos a partir de 20px
+pedem **letter-spacing negativo leve** (`-0.02em`) para não parecerem soltos. É o ajuste
+que separa "usei Inter" de "tratei Inter".
 
 ## 4. Sistema de movimento
 
@@ -141,7 +148,7 @@ apenas opacidade. Nenhuma informação depende de animação para ser compreendi
 Gradiente vertical de `azul-900` para `azul-800`. Três zonas: marca no topo, navegação
 no meio, usuário e controle de colapso no rodapé.
 
-Itens com **ícone à esquerda** e rótulo em Poppins 500, altura de 44px, raio
+Itens com **ícone à esquerda** e rótulo em peso 500, altura de 44px, raio
 `--raio-md`. Item ativo com fundo `azul-800` mais claro, texto branco, ícone branco e
 **barra indicadora de 3px em `azul-300` na borda esquerda** que desliza na troca de
 rota. Itens inativos com texto e ícone em `azul-300`; no hover, fundo sutil e texto
@@ -149,7 +156,7 @@ branco.
 
 #### Ícones da navegação
 
-Conjunto **Lucide** — traço de 1,5px a 2px, geometria limpa, pareia bem com Poppins.
+Conjunto **Lucide** — traço de 1,5px a 2px, geometria limpa, pareia bem com Inter.
 Tamanho 20px na navegação, 18px em ações secundárias.
 
 | Item | Ícone | Motivo |
@@ -259,7 +266,7 @@ confirmação de exclusão. Fantasma: só texto `azul-700`, para ações terciá
 ### Estados vazios
 
 Cartão centralizado com ilustração simples em traço de `azul-200` e `azul-400`, título
-em Poppins 600, uma linha de orientação e o botão da ação principal. Nunca uma tabela
+em peso 600, uma linha de orientação e o botão da ação principal. Nunca uma tabela
 vazia com uma frase solta.
 
 ### Carregamento

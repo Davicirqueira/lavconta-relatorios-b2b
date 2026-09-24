@@ -395,8 +395,8 @@ rápida e legível, para registrar sem erro e conferir valores com facilidade.
 
 ### Critérios de aceitação
 
-1. A interface DEVE usar a identidade visual definida (paleta azul/gelo, Poppins na
-   interface, Inter com numerais tabulares nos valores numéricos).
+1. A interface DEVE usar a identidade visual definida (paleta azul/gelo e Inter como
+   família tipográfica única, com numerais tabulares nos valores numéricos).
 2. As colunas de valores monetários e quantidades DEVEM alinhar os dígitos
    verticalmente nas tabelas e relatórios.
 3. As datas DEVEM ser informadas e exibidas no formato dd/mm/yyyy.

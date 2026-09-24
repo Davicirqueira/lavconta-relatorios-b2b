@@ -8,7 +8,7 @@ fileMatchPattern: 'frontend/**'
 Aplicação web de relatórios B2B da **Lavandix** (lavanderia e toalheria profissional, zona sul de São Paulo).
 
 - **Direção:** paleta consistente e objetiva, com derivações proporcionais de azul, branco e gelo.
-- **Tipografia:** Poppins.
+- **Tipografia:** Inter, família única para interface e números.
 - **Estados:** sucesso (verde), alerta (amarelo) e erro (vermelho), todos em tons médios: nem muito intensos, nem fracos.
 
 > **Observação:** a paleta não foi extraída do logo atual da Lavandix. O site institucional foi consultado apenas pelo conteúdo, sem acesso ao CSS nem à imagem do logo. Se o logo tiver um azul próprio, ajustar o matiz da escala azul (mantendo os mesmos degraus de luminosidade) para alinhar.
@@ -40,29 +40,37 @@ Aplicação web de relatórios B2B da **Lavandix** (lavanderia e toalheria profi
 
 ## 2. Tipografia
 
-Duas famílias, cada uma para a tarefa em que é melhor:
-
-- **Poppins — interface.** Títulos, rótulos, botões, navegação e corpo de texto.
-  Comunica a marca (geométrica, limpa, moderna).
-- **Inter — números.** Toda coluna/valor numérico em tabelas e relatórios
-  (valores em R$, quantidades, totais). Inter tem **numerais tabulares** nativos,
-  garantindo que as colunas de dinheiro alinhem a vírgula. Pareia bem com Poppins
-  e é gratuita.
+**Uma família só: Inter.** Interface e números na mesma fonte.
 
 **Motivo:** o núcleo do produto é uma tabela de valores em R$ que o cliente audita.
-Poppins não tem numerais tabulares por padrão, então os dígitos "dançam" nas colunas.
-Inter resolve isso sem trocar a identidade da interface.
+Inter foi desenhada para texto de interface em alta densidade — altura de x generosa,
+letras abertas, ótima legibilidade em corpo pequeno — e traz **numerais tabulares**
+nativos, garantindo que as colunas de dinheiro alinhem a vírgula. Com uma família
+única, a interface fica consistente de ponta a ponta e desaparece a complexidade de
+gerenciar, carregar e pesar duas fontes. É o padrão de Linear, Stripe e Vercel, as
+referências do brief de design.
 
-| Uso | Família | Peso |
-|---|---|---|
-| Títulos | Poppins | 600 (SemiBold) |
-| Rótulos, botões, cabeçalho de tabela | Poppins | 500 (Medium) |
-| Corpo de texto | Poppins | 400 (Regular) |
-| Valores numéricos em tabelas/relatórios | Inter | 400/500 |
+**Trade-off aceito:** menos personalidade de marca na tipografia. A identidade do
+Lavconta é carregada pela paleta azul/gelo, pela profundidade e pelo acabamento dos
+componentes — não pela fonte. Em um documento financeiro que precisa ser auditável,
+legibilidade e consistência valem mais do que expressão tipográfica.
 
-**Implementação dos números:** aplicar a família Inter **e**
-`font-variant-numeric: tabular-nums` nas células numéricas, para alinhamento
-vertical consistente dos dígitos.
+| Uso | Peso |
+|---|---|
+| Títulos | 600 (SemiBold) |
+| Rótulos, botões, cabeçalho de tabela | 500 (Medium) |
+| Corpo de texto | 400 (Regular) |
+| Valores numéricos em tabelas/relatórios | 400/500 + `tabular-nums` |
+
+**Implementação dos números:** como a família já é a mesma em toda a interface, a
+única coisa que distingue uma célula numérica é `font-variant-numeric: tabular-nums`.
+Aplicar a classe `.num` em toda célula de quantidade, valor unitário e total.
+Sem isso, Inter usa numerais proporcionais por padrão e os dígitos "dançam" na coluna.
+
+**Carregamento:** Inter variável (eixo de peso 400–600), **auto-hospedada** via pacote
+npm com versão fixa (`@fontsource-variable/inter`), subset latino, `font-display: swap`.
+Auto-hospedar em vez de usar CDN de terceiro elimina uma requisição externa no
+carregamento inicial e mantém a fonte sob o lockfile do projeto.
 
 ---
 
@@ -145,7 +153,7 @@ O **info** é o próprio `azul-600`; não há quarta cor de estado.
 |---|---|
 | Fundo do app | `gelo-50` |
 | Cartões e tabelas | `branco`, borda `gelo-200`, raio `--raio-lg`, sombra `--sombra-1` |
-| Cabeçalho de tabela | `gelo-100`, texto `gelo-600` (Poppins 500) |
+| Cabeçalho de tabela | `gelo-100`, texto `gelo-600` (peso 500) |
 | Sidebar | Gradiente vertical `azul-900` → `azul-800`, texto branco, ícones `azul-300`, item ativo `azul-800` com barra indicadora `azul-300` |
 | Botão primário | Fundo `azul-600`, texto branco; hover `azul-500`; pressionado `azul-700`; sombra `--sombra-1` → `--sombra-2` no hover |
 | Botão secundário | Fundo branco, borda `gelo-300`, texto `azul-700` |
@@ -214,9 +222,9 @@ O **info** é o próprio `azul-600`; não há quarta cor de estado.
   --erro-borda: #FFBCB5;
   --erro-forte: #98181F;
 
-  /* Tipografia */
-  --fonte: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --fonte-numeros: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Tipografia — família única */
+  /* "Inter Variable" é o nome de família exposto por @fontsource-variable/inter */
+  --fonte: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* Elevação — sombras tingidas de azul (azul-900), nunca preto puro */
   --sombra-1: 0 1px 2px rgba(11, 47, 88, 0.06), 0 1px 3px rgba(11, 47, 88, 0.04);
@@ -253,11 +261,16 @@ O **info** é o próprio `azul-600`; não há quarta cor de estado.
   }
 }
 
-/* Células numéricas: alinhamento consistente dos dígitos */
+/* Família única em toda a aplicação */
+body {
+  font-family: var(--fonte);
+}
+
+/* Células numéricas: alinhamento consistente dos dígitos.
+   A família já é a mesma; o que muda é apenas o numeral tabular. */
 .num,
 td.num,
 .valor {
-  font-family: var(--fonte-numeros);
   font-variant-numeric: tabular-nums;
 }
 ```

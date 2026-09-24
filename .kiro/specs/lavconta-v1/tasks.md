@@ -246,7 +246,9 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 - [ ] 32. Implementar a exportação PDF
   - `exports/pdf.py` com `reportlab` em A4 paisagem, tabela via `platypus`
   - Cabeçalho com cliente, período e data de geração; linha de totais destacada
-  - Degradar fonte e largura das colunas de item quando houver muitas, preservando Data,
+  - Registrar a TTF do Inter (400 e 600) com `pdfmetrics.registerFont`, em vez da
+    Helvetica padrão
+  - Degradar tamanho de fonte e largura das colunas de item quando houver muitas, preservando Data,
     Total de peças e Total R$
   - _Requisitos: 8.2, 8.3, 8.5_
 
@@ -269,7 +271,8 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Projeto React + TypeScript; dependências com versão exata e lockfile versionado
   - CSS global com os tokens de `id-visual.md`: cores, tipografia, sombras tingidas,
     raios, durações e curvas, e o bloco `prefers-reduced-motion`
-  - Fontes Poppins e Inter; classe utilitária de numerais tabulares
+  - Fonte Inter variável auto-hospedada (`@fontsource-variable/inter`, versão exata),
+    aplicada em toda a aplicação; classe utilitária `.num` de numerais tabulares
   - _Requisitos: 9.9, 10.1, 10.2_
 
 - [ ] 36. Implementar os utilitários de data e dinheiro

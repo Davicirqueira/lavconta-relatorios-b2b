@@ -650,8 +650,14 @@ Escolha com trade-off explícito. As alternativas eram:
 previsibilidade de deploy por conveniência de layout.
 
 Layout: **A4 paisagem**, porque o número de colunas de item é variável. Se as colunas não
-couberem, reduzir a fonte e comprimir as colunas de item, preservando legibilidade de
-Data, Total de peças e Total R$ (as três que sempre importam).
+couberem, reduzir o tamanho da fonte e comprimir as colunas de item, preservando
+legibilidade de Data, Total de peças e Total R$ (as três que sempre importam).
+
+**Tipografia do PDF:** registrar a TTF do **Inter** (pesos 400 e 600) via
+`pdfmetrics.registerFont`, em vez de usar a Helvetica padrão do reportlab. O documento é
+o artefato que chega ao cliente-empresa; usar a mesma família da interface mantém a
+relação de valores reconhecível como saída do Lavconta. Como a identidade agora é de
+**família única** (`id-visual.md` §2), é um arquivo de fonte para registrar, não dois.
 
 ### Nota de supply chain
 
