@@ -1,0 +1,19 @@
+# ==========================================================================
+# Lavconta — dependências de desenvolvimento e teste
+#
+# Separadas das de execução para que o deploy no Render instale apenas o
+# necessário para rodar a API.
+# Uso local: pip install -r requirements.txt -r requirements-dev.txt
+# ==========================================================================
+
+pytest==9.1.1
+pytest-asyncio==1.4.0
+
+# cliente de teste da API (TestClient do FastAPI depende de httpx,
+# já fixado em requirements.txt)
+
+# --- Qualidade e segurança ------------------------------------------------
+# linter e formatador
+ruff==0.16.8
+# auditoria de vulnerabilidades das dependências Python
+pip-audit==2.10.1

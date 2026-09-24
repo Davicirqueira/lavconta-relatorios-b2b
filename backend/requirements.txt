@@ -1,0 +1,40 @@
+# ==========================================================================
+# Lavconta — dependências de execução do backend
+#
+# POLÍTICA DE VERSÃO: todas fixadas com "==" (sem faixa aberta).
+# Versões conferidas no PyPI em 24/09/2026 via `pip index versions`.
+#
+# ATENÇÃO (typosquatting): conferir o nome EXATO antes de instalar.
+# Existem pacotes imitando os legítimos, como "reportlab-enhanced",
+# "reportlab-x", "openpyxl-fast", "paper-xlsx" e "xpyxl". Não são estes.
+# ==========================================================================
+
+# --- API ------------------------------------------------------------------
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+
+# --- Banco de dados -------------------------------------------------------
+sqlalchemy==2.0.54
+alembic==1.20.0
+# [binary] traz a libpq pré-compilada: evita precisar de toolchain de build
+psycopg[binary]==3.3.6
+
+# --- Configuração e validação --------------------------------------------
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# --- Autenticação ---------------------------------------------------------
+# pyjwt: pacote "pyjwt", módulo importado "jwt". Escolhido em vez de
+# python-jose por manutenção mais ativa e menor superfície.
+pyjwt==2.15.0
+# necessário para validar assinatura assimétrica (RS256/ES256) do JWKS
+cryptography==50.0.1
+# usado para buscar o JWKS do Supabase
+httpx==0.28.1
+
+# --- Segurança de borda ---------------------------------------------------
+slowapi==0.1.10
+
+# --- Exportação de relatórios --------------------------------------------
+openpyxl==3.1.5
+reportlab==5.0.1

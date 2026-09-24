@@ -1,0 +1,49 @@
+# ==========================================================================
+# Segredos e variáveis de ambiente — NUNCA versionar
+# (barreira configurada antes de qualquer arquivo sensível existir)
+# ==========================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+secrets/
+.secrets/
+*.local
+
+# ==========================================================================
+# Python / Backend
+# ==========================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ==========================================================================
+# Node / Frontend
+# ==========================================================================
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# ==========================================================================
+# IDE / Sistema operacional
+# ==========================================================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
