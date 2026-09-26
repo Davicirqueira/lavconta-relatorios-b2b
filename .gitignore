@@ -4,7 +4,11 @@
 # ==========================================================================
 .env
 .env.*
+# os arquivos de exemplo SÃO versionados (só têm nomes de chave, sem valores).
+# A segunda exceção é necessária porque "!.env.example" não cobre nomes
+# compostos como ".env.teste.example".
 !.env.example
+!.env.*.example
 *.pem
 *.key
 *.p12
