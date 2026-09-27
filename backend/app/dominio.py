@@ -57,3 +57,52 @@ class ResolucaoDePrecos:
     @property
     def completa(self) -> bool:
         return not self.sem_preco
+
+
+@dataclass(frozen=True, slots=True)
+class LinhaSolicitada:
+    """Uma linha como o operador a informa: item e quantidade.
+
+    Nunca traz valor. O preço é resolvido e congelado pelo servidor — aceitar
+    valor do cliente seria permitir que o navegador definisse quanto custa.
+    """
+
+    item_id: uuid.UUID
+    quantidade: int
+
+
+@dataclass(frozen=True, slots=True)
+class LinhaCalculada:
+    """Uma linha com o valor já congelado e o total.
+
+    ``valor_unitario`` é o preço vigente no mês da data do lançamento, capturado
+    no momento do cálculo. Uma vez gravado, não é recalculado (Req 6.1 a 6.3).
+    """
+
+    item_id: uuid.UUID
+    quantidade: int
+    valor_unitario: Decimal
+    total: Decimal
+    vigencia_origem: date
+
+
+@dataclass(frozen=True, slots=True)
+class CalculoDeLancamento:
+    """Resultado do cálculo, compartilhado por criar, editar e prévia.
+
+    Existe uma só implementação de cálculo no sistema. Se houvesse duas, uma
+    divergiria — e a divergência apareceria como fatura errada.
+
+    ``itens_sem_preco`` é devolvido em vez de levantar erro aqui: quem chama
+    decide. A criação recusa (Req 5.14); a prévia apenas informa, para não ser
+    hostil no meio da digitação.
+    """
+
+    linhas: tuple[LinhaCalculada, ...]
+    total_pecas: int
+    total_valor: Decimal
+    itens_sem_preco: tuple[uuid.UUID, ...]
+
+    @property
+    def completo(self) -> bool:
+        return not self.itens_sem_preco

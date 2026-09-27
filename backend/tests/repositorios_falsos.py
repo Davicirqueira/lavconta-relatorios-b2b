@@ -19,6 +19,7 @@ from decimal import Decimal
 from app.dominio import PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
+from app.models.lancamento import Lancamento, LancamentoLinha
 from app.models.preco import Preco
 
 
@@ -227,3 +228,109 @@ class RepositorioPrecoFalso:
 
     def sincronizar(self) -> None:
         self.sincronizacoes += 1
+
+
+class RepositorioLancamentoFalso:
+    """Emula o repositório de lançamento em memória.
+
+    Emula também as duas regras de unicidade que no banco são constraints, para
+    que o serviço possa ser testado sem Postgres. A garantia real continua sendo
+    a do banco, verificada em ``test_constraints.py``.
+    """
+
+    def __init__(self) -> None:
+        self.registros: dict[uuid.UUID, Lancamento] = {}
+        self.linhas: dict[uuid.UUID, list[LancamentoLinha]] = {}
+        self.sincronizacoes = 0
+
+    # --- contrato ---------------------------------------------------------
+
+    def obter_por_id(self, lancamento_id: uuid.UUID) -> Lancamento | None:
+        lancamento = self.registros.get(lancamento_id)
+        if lancamento is not None:
+            # emula o carregamento das linhas
+            lancamento.linhas = self.linhas.get(lancamento_id, [])
+        return lancamento
+
+    def buscar_por_cliente_e_data(self, cliente_id: uuid.UUID, data: date) -> Lancamento | None:
+        for lancamento in self.registros.values():
+            if lancamento.cliente_id == cliente_id and lancamento.data == data:
+                return lancamento
+        return None
+
+    def buscar_por_comanda(self, cliente_id: uuid.UUID, comanda: str) -> Lancamento | None:
+        alvo = _normalizar(comanda)
+        for lancamento in self.registros.values():
+            if (
+                lancamento.cliente_id == cliente_id
+                and lancamento.comanda is not None
+                and _normalizar(lancamento.comanda) == alvo
+            ):
+                return lancamento
+        return None
+
+    def listar_por_periodo(
+        self, cliente_id: uuid.UUID, inicio: date, fim: date
+    ) -> list[Lancamento]:
+        encontrados = [
+            self.obter_por_id(lancamento.id)
+            for lancamento in self.registros.values()
+            if lancamento.cliente_id == cliente_id and inicio <= lancamento.data <= fim
+        ]
+        return sorted(
+            [lancamento for lancamento in encontrados if lancamento is not None],
+            key=lambda lancamento: lancamento.data,
+        )
+
+    def inserir(self, cliente_id: uuid.UUID, data: date, comanda: str | None) -> Lancamento:
+        lancamento = Lancamento(cliente_id=cliente_id, data=data, comanda=comanda)
+        lancamento.id = uuid.uuid4()
+        lancamento.linhas = []
+        self.registros[lancamento.id] = lancamento
+        self.linhas[lancamento.id] = []
+        return lancamento
+
+    def inserir_linha(
+        self,
+        lancamento_id: uuid.UUID,
+        item_id: uuid.UUID,
+        quantidade: int,
+        valor_unitario_congelado: Decimal,
+    ) -> LancamentoLinha:
+        linha = LancamentoLinha(
+            lancamento_id=lancamento_id,
+            item_id=item_id,
+            quantidade=quantidade,
+            valor_unitario_congelado=valor_unitario_congelado,
+        )
+        linha.id = uuid.uuid4()
+        self.linhas.setdefault(lancamento_id, []).append(linha)
+        self._recalcular_totais()
+        return linha
+
+    def excluir_linha(self, linha: LancamentoLinha) -> None:
+        for lista in self.linhas.values():
+            if linha in lista:
+                lista.remove(linha)
+
+    def excluir(self, lancamento: Lancamento) -> None:
+        self.registros.pop(lancamento.id, None)
+        self.linhas.pop(lancamento.id, None)
+
+    def sincronizar(self) -> None:
+        self.sincronizacoes += 1
+        self._recalcular_totais()
+
+    def _recalcular_totais(self) -> None:
+        """Emula a coluna gerada ``total`` do banco.
+
+        No Postgres, ``total`` é ``GENERATED ALWAYS AS (valor × quantidade)`` e o
+        servidor o recalcula a cada escrita. O serviço nunca grava esse campo — e
+        não deve, porque em produção o banco recusaria.
+
+        Sem este recálculo o falso divergiria do banco justamente na edição de
+        quantidade, dando falso negativo.
+        """
+        for lista in self.linhas.values():
+            for linha in lista:
+                linha.total = linha.valor_unitario_congelado * linha.quantidade

@@ -9,7 +9,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 1 — Fundação e segurança do repositório
 
-- [ ] 1. Configurar barreira de segredos antes de qualquer arquivo sensível
+- [x] 1. Configurar barreira de segredos antes de qualquer arquivo sensível
   - Criar `.gitignore` na raiz cobrindo `.env`, `.env.*` (preservando `!.env.example`),
     `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.crt`, `secrets/`, `__pycache__/`,
     `node_modules/`, `dist/`, `.venv/`
@@ -18,21 +18,21 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Verificar com `git status` que nenhum arquivo de segredo é rastreável
   - _Requisitos: 9.1, 9.3_
 
-- [ ] 2. Criar a estrutura de pastas do monorepo
+- [x] 2. Criar a estrutura de pastas do monorepo
   - `backend/app/{core,models,schemas,repositories,services,exports,routers}`,
     `backend/migrations`, `backend/tests`
   - `frontend/src/{lib,features,components,pages,types}`
   - Arquivos `__init__.py` nos pacotes Python
   - _Requisitos: estrutura definida em `structure.md` e `design.md` §14_
 
-- [ ] 3. Configurar o backend com dependências fixadas
+- [x] 3. Configurar o backend com dependências fixadas
   - Criar `backend/requirements.txt` com versões **pinadas**, conferindo cada pacote na
     página oficial do PyPI no momento da instalação
   - Conferir nome exato de cada pacote (`reportlab`, `openpyxl`, `pyjwt`) contra
     typosquatting
   - _Requisitos: 9.9_
 
-- [ ] 4. Implementar configuração validada na inicialização
+- [x] 4. Implementar configuração validada na inicialização
   - `app/core/config.py` com Pydantic `Settings` lendo `DATABASE_URL`,
     `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, `SUPABASE_JWT_AUDIENCE`, `CORS_ORIGENS`
   - Falha na ausência de variável obrigatória com erro que nomeia a chave, sem default
@@ -40,7 +40,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Teste: instanciar sem variável obrigatória levanta erro citando o nome da chave
   - _Requisitos: 9.2_
 
-- [ ] 5. Criar o app FastAPI com borda configurada
+- [x] 5. Criar o app FastAPI com borda configurada
   - `app/main.py` com CORS restrito às origens da configuração, rota `GET /api/saude`
     (única pública) e handler global de erros
   - `app/core/erros.py` com as exceções de domínio e o mapa de códigos do design §8.1
@@ -48,7 +48,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
     stack trace
   - _Requisitos: 9.5, 9.7_
 
-- [ ] 6. Configurar CI no GitHub Actions
+- [x] 6. Configurar CI no GitHub Actions
   - Workflow com lint, testes e build de backend e frontend
   - `pip-audit` e `npm audit`; scanner de segredos (gitleaks)
   - _Requisitos: 9.9, 9.10_
@@ -57,13 +57,13 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 2 — Banco de dados
 
-- [ ] 7. Implementar os modelos ORM
+- [x] 7. Implementar os modelos ORM
   - `app/models/` com `Cliente`, `Item`, `Preco`, `Lancamento`, `LancamentoLinha`
   - `Numeric(10,2)` para preço, `Numeric(12,2)` para total, `Integer` para quantidade,
     `Date` para data de negócio, `DateTime(timezone=True)` para auditoria
   - _Requisitos: 4.11, 5.11, 11.1_
 
-- [ ] 8. Criar a migração inicial com todas as constraints
+- [x] 8. Criar a migração inicial com todas as constraints
   - Configurar Alembic e gerar a migração com o DDL do design §3.1
   - Incluir explicitamente: `clientes_nome_unico` (lower+btrim), FK composta
     `precos_item_do_cliente`, `precos_vigencia_primeiro_dia`, `precos_unico_por_mes`,
@@ -73,7 +73,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
     cliente e item de lançamento
   - _Requisitos: 2.5, 5.3, 5.10, 5.12, 6.4_
 
-- [ ] 9. Escrever testes de constraint contra Postgres
+- [x] 9. Escrever testes de constraint contra Postgres
   - Segundo lançamento em (cliente, data) é rejeitado pelo banco
   - Comanda repetida com caixa diferente (`a100` vs `A100`) é rejeitada
   - Dois lançamentos sem comanda do mesmo cliente são aceitos
@@ -86,14 +86,14 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 3 — Autenticação
 
-- [ ] 10. Implementar validação completa de JWT
+- [x] 10. Implementar validação completa de JWT
   - `app/core/seguranca.py` com busca de JWKS via `httpx`, cache em memória com TTL e
     recarga sob `kid` desconhecido
   - Validar assinatura, `exp`, `iss` e `aud`; falha → `401` com mensagem genérica
   - Dependência `usuario_atual` aplicada no nível do `APIRouter` de dados
   - _Requisitos: 1.3, 1.4, 1.5, 1.7_
 
-- [ ] 11. Escrever testes de autenticação, incluindo o teste estrutural
+- [x] 11. Escrever testes de autenticação, incluindo o teste estrutural
   - Token válido passa; ausente, expirado, assinatura inválida, `aud` errado e `iss`
     errado retornam `401`
   - **Teste estrutural:** varrer as rotas registradas no app e falhar se alguma rota sob
@@ -104,7 +104,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 4 — Clientes e catálogo
 
-- [ ] 12. Implementar repositório e serviço de clientes
+- [x] 12. Implementar repositório e serviço de clientes
   - `repositories/cliente_repo.py` com queries parametrizadas
   - `services/servico_cliente.py`: criar, renomear, listar ordenado por nome, inativar,
     reativar, excluir só sem lançamentos
@@ -112,17 +112,17 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Exclusão com histórico → `EXCLUSAO_COM_HISTORICO` sugerindo inativação
   - _Requisitos: 2.1–2.11_
 
-- [ ] 13. Expor os endpoints de clientes
+- [x] 13. Expor os endpoints de clientes
   - Router com GET (com `incluir_inativos`), POST, PATCH, inativar, reativar, DELETE
   - Schemas Pydantic de entrada e saída separados dos modelos ORM
   - _Requisitos: 2.1–2.11_
 
-- [ ] 14. Implementar repositório e serviço de itens
+- [x] 14. Implementar repositório e serviço de itens
   - Item vinculado a cliente; nome único por cliente ignorando caixa
   - Inativar, reativar; exclusão apenas de item nunca usado
   - _Requisitos: 3.1–3.13_
 
-- [ ] 15. Expor os endpoints de itens
+- [x] 15. Expor os endpoints de itens
   - GET/POST em `/api/clientes/{cliente_id}/itens`; PATCH, inativar, reativar e DELETE em
     `/api/itens/{id}`
   - _Requisitos: 3.1–3.13_
@@ -131,14 +131,14 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 5 — Preços e resolução de vigência
 
-- [ ] 16. Implementar a resolução de preço vigente
+- [x] 16. Implementar a resolução de preço vigente
   - `repositories/preco_repo.py` com a consulta `DISTINCT ON` em lote do design §5
   - `services/servico_preco.py` com `resolver_precos(cliente_id, item_ids, data)`
     devolvendo preços encontrados e itens sem preço
   - Normalizar `vigencia_mes` para o primeiro dia do mês
   - _Requisitos: 4.4, 4.6, 4.7, 4.8_
 
-- [ ] 17. Escrever os testes de resolução de preço
+- [x] 17. Escrever os testes de resolução de preço
   - Propagação: preço de junho vale em setembro e em dezembro
   - Mês com vigência própria sobrepõe a propagação
   - Lançamento retroativo recebe o preço do mês do pedido, não do mês corrente
@@ -146,12 +146,12 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Fronteiras: primeiro e último dia do mês resolvem o mesmo preço
   - _Requisitos: 4.4, 4.6, 4.7, 4.8_
 
-- [ ] 18. Implementar definição e correção de preço
+- [x] 18. Implementar definição e correção de preço
   - Upsert por (cliente, item, mês); recusar valor ≤ 0 e mais de duas casas decimais
   - Permitir correção de mês passado
   - _Requisitos: 4.2, 4.9, 4.12, 4.13, 4.14, 4.17_
 
-- [ ] 19. Expor os endpoints de preços
+- [x] 19. Expor os endpoints de preços
   - `GET /api/clientes/{id}/precos?mes=YYYY-MM` devolvendo preço resolvido por item,
     `vigencia_origem` e sinalizador `sem_preco`
   - `PUT /api/clientes/{id}/precos` para upsert
@@ -161,42 +161,42 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 6 — Lançamentos e congelamento
 
-- [ ] 20. Implementar utilitário de data de negócio
+- [x] 20. Implementar utilitário de data de negócio
   - `app/core/datas.py` com `FUSO_NEGOCIO = ZoneInfo("America/Sao_Paulo")` e `hoje_sp()`
   - Única fonte de "hoje" no backend
   - Teste: `hoje_sp()` independe do fuso do processo
   - _Requisitos: 11.6, 11.7_
 
-- [ ] 21. Implementar o cálculo compartilhado de lançamento
+- [x] 21. Implementar o cálculo compartilhado de lançamento
   - `_resolver_e_calcular` em `servico_lancamento`: resolve preços pelo mês da data,
     calcula total por linha, total de peças e total em R$ com `Decimal`
   - Usado por criar, editar e prévia — implementação única de cálculo
   - _Requisitos: 6.1, 6.4, 6.5, 6.6_
 
-- [ ] 22. Implementar criação de lançamento com congelamento
+- [x] 22. Implementar criação de lançamento com congelamento
   - Validar data não futura, comanda normalizada, itens do cliente, sem repetição
   - Recusar com `ITENS_SEM_PRECO` nomeando os itens faltantes
   - Transação única inserindo lançamento e linhas com `valor_unitario_congelado`
   - Traduzir violações de constraint em `LANCAMENTO_DUPLICADO` e `COMANDA_DUPLICADA`
   - _Requisitos: 5.1–5.16, 6.1_
 
-- [ ] 23. Implementar edição de lançamento preservando o congelamento
+- [x] 23. Implementar edição de lançamento preservando o congelamento
   - Linha existente: mantém valor congelado, atualiza só quantidade
   - Linha nova: congela pelo preço vigente do **mês da data do lançamento**
   - Alteração de cliente ou data revalida unicidade e data futura
   - _Requisitos: 5.17–5.20, 6.3_
 
-- [ ] 24. Implementar exclusão de lançamento
+- [x] 24. Implementar exclusão de lançamento
   - Remoção do lançamento e das linhas em cascata
   - _Requisitos: 5.21, 5.23_
 
-- [ ] 25. Implementar a prévia de totais
+- [x] 25. Implementar a prévia de totais
   - `calcular_previa` reutilizando `_resolver_e_calcular`, sem persistir
   - Devolve `itens_sem_preco` como lista, sem levantar erro
   - Não valida data futura, unicidade nem comanda
   - _Requisitos: 6.8; design §8.2 e §9.3_
 
-- [ ] 26. Escrever os testes de congelamento e cálculo
+- [x] 26. Escrever os testes de congelamento e cálculo
   - Criação grava o preço vigente do mês da data
   - Alterar preço depois não muda lançamento nem total já criado
   - Edição preserva o congelado da linha existente
