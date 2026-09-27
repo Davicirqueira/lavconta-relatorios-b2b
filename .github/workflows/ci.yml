@@ -83,7 +83,11 @@ jobs:
         # DATABASE_URL_TESTE aponta para o serviço Postgres acima.
         env:
           DATABASE_URL_TESTE: postgresql+psycopg://postgres:postgres@localhost:5432/lavconta_teste
-        run: python -m pytest
+          # Fecha um ponto cego: sem isso, um teste PULADO por banco inacessível
+          # também deixaria o CI verde. Com a variável, ausência de banco falha.
+          EXIGIR_BANCO_DE_TESTE: "1"
+        # -r a resume os pulados no fim da saída, para ficarem visíveis no log
+        run: python -m pytest -ra --strict-markers
 
       - name: Auditoria de vulnerabilidades (pip-audit)
         # Audita o AMBIENTE INSTALADO, não o requirements.txt: cobre também as

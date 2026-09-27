@@ -79,14 +79,28 @@ def _url_do_banco_de_teste() -> str | None:
 
 @pytest.fixture(scope="session")
 def url_banco_teste() -> str:
-    """URL validada do banco de teste, ou pula a suíte com instrução clara."""
+    """URL validada do banco de teste.
+
+    Sem banco configurado: pula localmente (conveniência de quem ainda não
+    montou o ambiente) ou **falha** quando ``EXIGIR_BANCO_DE_TESTE=1``.
+
+    O CI define essa variável de propósito. Sem ela haveria um ponto cego:
+    teste pulado também deixa o CI verde, e a suíte de constraints poderia
+    deixar de rodar sem ninguém perceber.
+    """
     url = _url_do_banco_de_teste()
     if not url:
-        pytest.skip(
+        recado = (
             "Banco de teste não configurado. Crie backend/.env.teste a partir de "
             ".env.teste.example (o banco é criado por "
             "scripts/redefinir-senha-postgres-local.ps1)."
         )
+        if os.environ.get("EXIGIR_BANCO_DE_TESTE") == "1":
+            pytest.fail(
+                f"EXIGIR_BANCO_DE_TESTE=1 mas o banco não está acessível. {recado}",
+                pytrace=False,
+            )
+        pytest.skip(recado)
 
     # TRAVA DE SEGURANÇA: a suíte cria e remove tabelas. Apontar para um host
     # remoto (ex.: Supabase de produção) seria destrutivo.
