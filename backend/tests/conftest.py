@@ -15,7 +15,9 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
+from fastapi.testclient import TestClient
 from sqlalchemy import Connection, Engine, create_engine, text
+from sqlalchemy.orm import Session
 
 RAIZ_BACKEND = Path(__file__).resolve().parent.parent
 
@@ -146,6 +148,58 @@ def conexao(engine_teste: Engine) -> Iterator[Connection]:
             yield conexao
         finally:
             transacao.rollback()
+
+
+@pytest.fixture
+def sessao(engine_teste: Engine) -> Iterator[Session]:
+    """Sessão ORM isolada, mesmo quando o código sob teste faz ``commit``.
+
+    A sessão participa de uma transação externa com
+    ``join_transaction_mode="create_savepoint"``: um ``commit`` dentro do
+    endpoint libera um savepoint em vez de confirmar a transação externa. Ao
+    final, o rollback externo descarta tudo.
+
+    Sem isso, o ``commit`` da dependência de requisição gravaria de verdade e os
+    testes de API contaminariam uns aos outros.
+    """
+    conexao = engine_teste.connect()
+    transacao = conexao.begin()
+    sessao = Session(
+        bind=conexao,
+        join_transaction_mode="create_savepoint",
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    try:
+        yield sessao
+    finally:
+        sessao.close()
+        transacao.rollback()
+        conexao.close()
+
+
+@pytest.fixture
+def api(sessao: Session) -> Iterator[TestClient]:
+    """Cliente HTTP com o banco de teste e um usuário autenticado fictício.
+
+    Substituímos duas dependências: a sessão, para apontar ao Postgres local em
+    vez do Supabase; e a autenticação, porque o que está sob teste aqui é a regra
+    de negócio — a validação de JWT tem sua própria suíte.
+    """
+    from app.core.banco import obter_sessao
+    from app.core.seguranca import UsuarioAutenticado, usuario_atual
+    from app.main import criar_app
+
+    aplicacao = criar_app()
+    aplicacao.dependency_overrides[obter_sessao] = lambda: sessao
+    aplicacao.dependency_overrides[usuario_atual] = lambda: UsuarioAutenticado(
+        id="00000000-0000-0000-0000-000000000001",
+        email="teste@lavconta.local",
+        papel="authenticated",
+    )
+    with TestClient(aplicacao, raise_server_exceptions=False) as cliente:
+        yield cliente
+    aplicacao.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------

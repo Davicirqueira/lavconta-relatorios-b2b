@@ -17,7 +17,11 @@ from app.models import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False é essencial: o padrão do fileConfig é True,
+    # o que DESATIVA todos os loggers já configurados. Isso silenciaria os
+    # loggers da aplicação — inclusive "lavconta.seguranca", que registra os
+    # diagnósticos de autenticação (divergência de iss/aud).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

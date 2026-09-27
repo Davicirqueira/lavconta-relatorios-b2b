@@ -18,7 +18,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import AuditoriaMixin, Base, IdentificadorMixin
 
 if TYPE_CHECKING:
-    from app.models.cliente import Cliente
     from app.models.item import Item
 
 
@@ -42,7 +41,8 @@ class Preco(IdentificadorMixin, AuditoriaMixin, Base):
     # duas casas decimais exatas: sem fração de centavo (Req 4.12)
     valor_unitario: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
-    cliente: Mapped["Cliente"] = relationship(back_populates="precos")
+    # Apenas a relação com Item: ela tem chave estrangeira declarada (a composta).
+    # Ver a nota em models/cliente.py sobre a ausência de Cliente.precos.
     item: Mapped["Item"] = relationship(back_populates="precos")
 
     __table_args__ = (

@@ -157,6 +157,11 @@ def item_duplicado_no_lancamento(nome: str) -> ErroDeDominio:
     )
 
 
+def campo_obrigatorio(campo: str, mensagem: str) -> ErroDeDominio:
+    """Campo ausente ou vazio, com o nome do campo para a tela destacar."""
+    return ErroDeDominio(CodigoErro.VALIDACAO, mensagem, {"campos": [campo]})
+
+
 def nao_autenticado() -> ErroDeDominio:
     """Falha de autenticação.
 

@@ -17,6 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import obter_configuracao
 from app.core.erros import CodigoErro, ErroDeDominio
+from app.routers import clientes, itens
 
 logger = logging.getLogger("lavconta")
 
@@ -118,6 +119,11 @@ def criar_app() -> FastAPI:
         hibernação do plano gratuito.
         """
         return {"situacao": "ok"}
+
+    # Routers de dados. Cada um carrega a dependência de autenticação no próprio
+    # APIRouter; o teste estrutural em tests/test_autenticacao.py confirma.
+    aplicacao.include_router(clientes.router)
+    aplicacao.include_router(itens.router)
 
     return aplicacao
 

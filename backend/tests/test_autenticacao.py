@@ -23,7 +23,6 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from jwt import PyJWKClient
 
-from app.core import seguranca
 from app.core.erros import CodigoErro, nao_autenticado
 from app.core.seguranca import Autenticado, limpar_cache_jwks
 from app.main import ROTA_PUBLICA_SAUDE, app, criar_app
@@ -369,71 +368,103 @@ class TestDiagnosticoNoLog:
 # ---------------------------------------------------------------------------
 
 
+METODOS_HTTP = ("get", "post", "put", "patch", "delete")
+
+# valor válido para qualquer parâmetro de caminho, para que a requisição chegue à
+# verificação de autenticação em vez de parar na validação de tipo
+UUID_FICTICIO = "00000000-0000-0000-0000-000000000000"
+
+
+def rotas_da_api(aplicacao: FastAPI) -> list[tuple[str, str]]:
+    """Lista (método, caminho) das rotas sob ``/api``, a partir do OpenAPI.
+
+    Usamos o esquema OpenAPI, que é contrato público do FastAPI, em vez de
+    percorrer ``app.routes``. Motivo concreto: a partir da versão 0.141 o
+    ``include_router`` não achata as rotas em ``app.routes`` — ele guarda um
+    objeto ``_IncludedRouter``. Um detector baseado em estrutura interna passou a
+    ignorar todas as rotas incluídas e dava falsa segurança.
+    """
+    esquema = aplicacao.openapi()
+    rotas: list[tuple[str, str]] = []
+    for caminho, operacoes in esquema.get("paths", {}).items():
+        if not caminho.startswith("/api"):
+            continue
+        for metodo in operacoes:
+            if metodo.lower() in METODOS_HTTP:
+                rotas.append((metodo.upper(), caminho))
+    return rotas
+
+
+def _preencher_parametros(caminho: str) -> str:
+    """Substitui ``{param}`` por um UUID válido."""
+    resultado = caminho
+    while "{" in resultado:
+        inicio = resultado.index("{")
+        fim = resultado.index("}", inicio)
+        resultado = resultado[:inicio] + UUID_FICTICIO + resultado[fim + 1 :]
+    return resultado
+
+
 class TestProtecaoEstruturalDasRotas:
     """Impede que uma rota de dados seja publicada sem autenticação.
 
-    Não verifica comportamento de uma rota específica: varre as rotas
-    registradas e exige a dependência. Esquecimento passa a quebrar o CI em vez
-    de virar incidente de segurança.
+    Verificação COMPORTAMENTAL: para cada rota declarada no OpenAPI, faz a
+    requisição sem token e exige 401. Testa a propriedade de segurança de fato,
+    e não uma estrutura interna da biblioteca que pode mudar de versão.
     """
 
     def test_toda_rota_de_dados_exige_autenticacao(self) -> None:
+        cliente_sem_token = TestClient(app, raise_server_exceptions=False)
         desprotegidas: list[str] = []
 
-        for rota in app.routes:
-            caminho = getattr(rota, "path", "")
-            if not caminho.startswith("/api") or caminho == ROTA_PUBLICA_SAUDE:
-                continue
+        rotas = rotas_da_api(app)
+        assert rotas, "nenhuma rota /api encontrada — o detector não está enxergando nada"
 
-            dependencias = getattr(getattr(rota, "dependant", None), "dependencies", [])
-            protegida = any(
-                dep.call is seguranca.usuario_atual
-                for dep in _achatar_dependencias(dependencias)
-                if getattr(dep, "call", None) is not None
-            )
-            if not protegida:
-                desprotegidas.append(f"{sorted(getattr(rota, 'methods', []))} {caminho}")
+        for metodo, caminho in rotas:
+            if caminho == ROTA_PUBLICA_SAUDE:
+                continue
+            resposta = cliente_sem_token.request(metodo, _preencher_parametros(caminho), json={})
+            if resposta.status_code != 401:
+                desprotegidas.append(f"{metodo} {caminho} -> {resposta.status_code}")
 
         assert not desprotegidas, (
-            "Rotas de dados sem autenticação: "
-            + ", ".join(desprotegidas)
-            + ". Aplique a dependência no APIRouter."
+            "Rotas de dados que responderam sem autenticação: "
+            + "; ".join(desprotegidas)
+            + ". Aplique a dependência de autenticação no APIRouter."
         )
+
+    def test_encontra_as_rotas_de_clientes(self) -> None:
+        """Garante que o detector realmente enxerga rotas de router incluído."""
+        caminhos = {caminho for _, caminho in rotas_da_api(app)}
+
+        assert "/api/clientes" in caminhos
+        assert "/api/clientes/{cliente_id}" in caminhos
 
     def test_a_rota_publica_de_saude_permanece_acessivel(self) -> None:
         resposta = TestClient(app).get(ROTA_PUBLICA_SAUDE)
 
         assert resposta.status_code == 200
 
-    def test_o_teste_estrutural_detecta_rota_desprotegida(self) -> None:
-        """Verifica o próprio detector: uma rota sem auth deve ser encontrada."""
-        aplicacao = criar_app()
+    def test_o_detector_acusa_rota_desprotegida(self) -> None:
+        """Verifica o próprio detector com uma rota sem autenticação.
 
-        @aplicacao.get("/api/esquecida")
+        Sem este teste, um detector cego passaria silenciosamente e daria falsa
+        segurança — que é pior que não ter detector.
+        """
+        aplicacao = criar_app()
+        router_sem_protecao = APIRouter(prefix="/api")
+
+        @router_sem_protecao.get("/esquecida")
         async def _sem_protecao() -> dict[str, bool]:
             return {"vazou": True}
 
-        desprotegidas = [
-            getattr(rota, "path", "")
-            for rota in aplicacao.routes
-            if getattr(rota, "path", "").startswith("/api")
-            and getattr(rota, "path", "") != ROTA_PUBLICA_SAUDE
-            and not any(
-                dep.call is seguranca.usuario_atual
-                for dep in _achatar_dependencias(
-                    getattr(getattr(rota, "dependant", None), "dependencies", [])
-                )
-                if getattr(dep, "call", None) is not None
-            )
-        ]
+        # incluído por include_router, exatamente como as rotas reais
+        aplicacao.include_router(router_sem_protecao)
 
-        assert "/api/esquecida" in desprotegidas
+        cliente_sem_token = TestClient(aplicacao, raise_server_exceptions=False)
+        resposta = cliente_sem_token.get("/api/esquecida")
 
-
-def _achatar_dependencias(dependencias: list) -> list:
-    """Percorre a árvore de dependências do FastAPI, incluindo as aninhadas."""
-    resultado = []
-    for dependencia in dependencias:
-        resultado.append(dependencia)
-        resultado.extend(_achatar_dependencias(getattr(dependencia, "dependencies", [])))
-    return resultado
+        assert ("GET", "/api/esquecida") in rotas_da_api(aplicacao), (
+            "o detector não enxergou a rota incluída"
+        )
+        assert resposta.status_code == 200, "a rota de teste deveria estar desprotegida"
