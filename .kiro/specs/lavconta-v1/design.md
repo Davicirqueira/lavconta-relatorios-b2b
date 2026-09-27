@@ -50,6 +50,29 @@ as APIs auto-geradas para regra de negócio.
 | `repositories/` | Queries parametrizadas, transação | Regra de negócio |
 | `exports/` | Renderiza PDF/Excel a partir do relatório já calculado | Recalcular qualquer total |
 
+### O que a camada de repositório entrega — e o que não entrega
+
+Os serviços declaram dependência sobre **protocolos** (`repositories/protocolos.py`),
+não sobre as implementações concretas.
+
+**Entrega, e é exercitado:**
+
+- Concentração das consultas parametrizadas num só lugar.
+- Regra de negócio testável **sem banco**: `tests/test_servicos_sem_banco.py` roda as
+  decisões contra repositórios em memória, sem I/O. Funciona porque modelo declarativo
+  do SQLAlchemy pode ser instanciado sem sessão.
+
+**Não entrega, e é deliberado:**
+
+- Independência total do ORM. Os repositórios devolvem **entidades do domínio**, que
+  por conveniência são os próprios modelos ORM, e os serviços alteram atributos dessas
+  entidades. Não há tradução para estruturas separadas — um mapeamento adicional
+  dobraria o código sem ganho nesta escala.
+
+Este registro existe porque a versão anterior deste documento prometia
+"testável sem banco" sem que houvesse um único teste assim. Quem lê um design deve
+encontrar no código o que ele afirma.
+
 ---
 
 ## 3. Modelo de dados
@@ -740,6 +763,34 @@ sinal que a UI usa para mostrar o painel de reativação (Req 10.6).
 única instância e zera quando o serviço hiberna ou reinicia. Serve para conter abuso
 acidental, não ataque distribuído. Aceitável na v1 (uso interno, usuário único);
 registrado como dívida consciente.
+
+### 12.1 Riscos de segurança aceitos
+
+Registrados explicitamente para não serem descobertos como surpresa.
+
+**Janela de 60 minutos do token.** A validação confere assinatura e `exp`, sem
+consultar o servidor de autenticação a cada requisição — é o que torna a API rápida e
+independente. A consequência: **um token comprometido continua válido até expirar,
+mesmo que a sessão seja revogada no Supabase.** O tempo de vida medido no projeto real
+é de 60 minutos, então essa é a janela de exposição.
+
+Mitigação disponível se necessário: reduzir o tempo de vida do token na configuração do
+Supabase, trocando exposição por mais renovações. Introspecção por requisição não vale
+na v1 — custaria uma chamada externa a cada chamada de API, inviável com o cold start
+do plano gratuito.
+
+**Ausência de rastro de auditoria.** Edição e exclusão de lançamento não deixam registro
+de quem fez nem quando. É consequência de duas decisões de negócio (ambas permitidas,
+decisões 4 e 5) somadas ao escopo de usuário único.
+
+Isso vira lacuna relevante no momento em que houver mais de um operador: sem rastro,
+uma alteração indevida em fatura já enviada não tem como ser atribuída. Candidato
+natural à v2, junto com múltiplos usuários. Os campos `criado_em` e `atualizado_em` já
+existem em todas as tabelas, então a base para registrar autoria está pronta.
+
+**Sem rate limiting até a tarefa 34.** Enquanto ela não for implementada, os endpoints
+não têm proteção contra abuso. O login não está exposto: ele acontece no Supabase, sob
+o rate limit deles. O que está descoberto são as rotas de dados, que exigem JWT válido.
 
 ---
 

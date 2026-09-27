@@ -15,26 +15,26 @@ VALIDAÇÃO DUPLA DE UNICIDADE
 """
 
 import uuid
+from typing import NoReturn
 
 from sqlalchemy.exc import IntegrityError
 
 from app.core.banco import nome_da_constraint_violada
 from app.core.erros import (
-    ErroDeDominio,
     campo_obrigatorio,
     exclusao_com_historico,
     nao_encontrado,
     nome_duplicado,
 )
 from app.models.cliente import Cliente
-from app.repositories.cliente_repo import RepositorioCliente
+from app.repositories.protocolos import RepositorioClienteProtocolo
 
 # Índice único do nome (migração inicial). Usado para traduzir a violação.
 INDICE_NOME_UNICO = "ix_clientes_nome_unico"
 
 
 class ServicoCliente:
-    def __init__(self, repositorio: RepositorioCliente) -> None:
+    def __init__(self, repositorio: RepositorioClienteProtocolo) -> None:
         self._repositorio = repositorio
 
     # --- consultas --------------------------------------------------------
@@ -59,7 +59,7 @@ class ServicoCliente:
         try:
             return self._repositorio.inserir(nome_limpo)
         except IntegrityError as erro:
-            raise self._traduzir(erro, nome_limpo) from erro
+            self._relancar_traduzido(erro, nome_limpo)
 
     def renomear(self, cliente_id: uuid.UUID, nome: str) -> Cliente:
         """Renomeia sem tocar em lançamentos ou valores já registrados (Req 2.3).
@@ -78,7 +78,7 @@ class ServicoCliente:
         try:
             self._repositorio.sincronizar()
         except IntegrityError as erro:
-            raise self._traduzir(erro, nome_limpo) from erro
+            self._relancar_traduzido(erro, nome_limpo)
         return cliente
 
     def inativar(self, cliente_id: uuid.UUID) -> Cliente:
@@ -117,8 +117,13 @@ class ServicoCliente:
         return limpo
 
     @staticmethod
-    def _traduzir(erro: IntegrityError, nome: str) -> ErroDeDominio:
-        """Converte violação de constraint em erro de domínio, ou repassa."""
+    def _relancar_traduzido(erro: IntegrityError, nome: str) -> NoReturn:
+        """Relança a violação como erro de domínio, ou repassa a original.
+
+        Sempre levanta — por isso o retorno é ``NoReturn``. A versão anterior
+        desta função *retornava* um erro em um caminho e *levantava* em outro,
+        o que funcionava mas era obscuro para quem lesse depois.
+        """
         if nome_da_constraint_violada(erro) == INDICE_NOME_UNICO:
-            return nome_duplicado("cliente", nome)
+            raise nome_duplicado("cliente", nome) from erro
         raise erro

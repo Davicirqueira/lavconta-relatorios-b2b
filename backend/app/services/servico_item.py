@@ -16,27 +16,31 @@ ATIVO E INATIVO
 """
 
 import uuid
+from typing import NoReturn
 
 from sqlalchemy.exc import IntegrityError
 
 from app.core.banco import nome_da_constraint_violada
 from app.core.erros import (
-    ErroDeDominio,
     campo_obrigatorio,
     exclusao_com_historico,
     nao_encontrado,
     nome_duplicado,
 )
 from app.models.item import Item
-from app.repositories.cliente_repo import RepositorioCliente
-from app.repositories.item_repo import RepositorioItem
+from app.repositories.protocolos import (
+    RepositorioClienteProtocolo,
+    RepositorioItemProtocolo,
+)
 
 INDICE_NOME_UNICO_POR_CLIENTE = "ix_itens_nome_unico_por_cliente"
 
 
 class ServicoItem:
     def __init__(
-        self, repositorio: RepositorioItem, repositorio_cliente: RepositorioCliente
+        self,
+        repositorio: RepositorioItemProtocolo,
+        repositorio_cliente: RepositorioClienteProtocolo,
     ) -> None:
         self._repositorio = repositorio
         self._repositorio_cliente = repositorio_cliente
@@ -65,7 +69,7 @@ class ServicoItem:
         try:
             return self._repositorio.inserir(cliente_id, nome_limpo)
         except IntegrityError as erro:
-            raise self._traduzir(erro, nome_limpo) from erro
+            self._relancar_traduzido(erro, nome_limpo)
 
     def renomear(self, item_id: uuid.UUID, nome: str) -> Item:
         """Renomeia sem afetar o valor congelado de lançamentos anteriores.
@@ -84,7 +88,7 @@ class ServicoItem:
         try:
             self._repositorio.sincronizar()
         except IntegrityError as erro:
-            raise self._traduzir(erro, nome_limpo) from erro
+            self._relancar_traduzido(erro, nome_limpo)
         return item
 
     def inativar(self, item_id: uuid.UUID) -> Item:
@@ -127,7 +131,8 @@ class ServicoItem:
         return limpo
 
     @staticmethod
-    def _traduzir(erro: IntegrityError, nome: str) -> ErroDeDominio:
+    def _relancar_traduzido(erro: IntegrityError, nome: str) -> NoReturn:
+        """Relança a violação como erro de domínio, ou repassa a original."""
         if nome_da_constraint_violada(erro) == INDICE_NOME_UNICO_POR_CLIENTE:
-            return nome_duplicado("item", nome)
+            raise nome_duplicado("item", nome) from erro
         raise erro

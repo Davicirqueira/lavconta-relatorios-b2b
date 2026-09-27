@@ -6,13 +6,25 @@
 
 ## 0. Skills que reforçam este steering
 
-Duas skills carregam as diretrizes operacionais em detalhe. Ativá-las quando o
+Quatro skills carregam as diretrizes operacionais em detalhe. Ativá-las quando o
 contexto casar:
 
 - **`boas-praticas`** — planejamento, código modular, qualidade, segurança geral e
   verificação antes de "pronto".
 - **`gestao-segredos`** — cibersegurança aplicada a segredos: nenhuma chave,
   credencial, senha ou dado sensível no código-fonte ou versionado no Git.
+- **`estrategia-de-teste`** — como escrever teste que detecta defeito: asserção
+  comportamental em vez de estrutural, teste do próprio detector, isolamento com
+  savepoint, e as formas de verde enganoso (teste pulado, código de saída, exceção
+  engolida).
+- **`diagnostico-e-verificacao`** — sondar antes de supor, isolar uma variável por
+  vez, distinguir fato observado de inferência, e as zonas em que memória não vale
+  (versão de dependência, caminho de API, comportamento interno de biblioteca,
+  ambiente do usuário).
+
+As duas últimas nasceram de defeitos reais desta implementação: um teste estrutural
+de autenticação que ficou cego a rotas incluídas, versões de pacote inventadas de
+memória, e um diagnóstico de login atribuído à causa errada antes de haver evidência.
 
 O steering fixa as **decisões**; as skills detalham a **prática**. Em conflito,
 o steering do projeto tem precedência.
