@@ -33,6 +33,26 @@ jobs:
       run:
         working-directory: backend
 
+    # Postgres real: os testes de constraint usam índice único parcial, índice
+    # sobre expressão e coluna gerada — recursos que não existem em SQLite.
+    # Testar em outro banco daria falsa cobertura.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          # Credencial efêmera do contêiner de CI: vive apenas durante o job,
+          # em banco descartável, sem nenhum dado real. Não é segredo.
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lavconta_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -58,8 +78,11 @@ jobs:
         run: python -m ruff format --check .
 
       - name: Testes (pytest)
-        # As variáveis de ambiente são definidas pelo conftest com valores
+        # As variáveis da aplicação são definidas pelo conftest com valores
         # fictícios: o CI não precisa de nenhum segredo real para testar.
+        # DATABASE_URL_TESTE aponta para o serviço Postgres acima.
+        env:
+          DATABASE_URL_TESTE: postgresql+psycopg://postgres:postgres@localhost:5432/lavconta_teste
         run: python -m pytest
 
       - name: Auditoria de vulnerabilidades (pip-audit)

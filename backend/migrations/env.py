@@ -21,8 +21,13 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# injeta a URL da configuração validada
-config.set_main_option("sqlalchemy.url", obter_configuracao().DATABASE_URL)
+# A URL pode ter sido definida pelo chamador (ex.: a suíte de testes aponta para
+# o Postgres local). Só recorremos à configuração da aplicação se ela não veio.
+#
+# IMPORTANTE: sobrescrever aqui incondicionalmente faria os testes migrarem o
+# banco de PRODUÇÃO, ignorando o banco de teste solicitado.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", obter_configuracao().DATABASE_URL)
 
 
 def executar_migracoes_offline() -> None:

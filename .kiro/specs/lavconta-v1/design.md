@@ -880,10 +880,28 @@ zerados.
 
 Itens que exigem verificação no ambiente real, registrados para não serem esquecidos:
 
-1. **Configuração do Supabase** — confirmar sistema de chaves assimétricas ativo, URL do
-   JWKS, algoritmo e valores de `iss`/`aud`.
+1. ~~**Configuração do Supabase**~~ — **RESOLVIDO em 27/09/2026.** Verificado contra o
+   projeto `muytfdmcnzgdrebverjq` pelos scripts em `backend/scripts_verificacao/`:
+
+   | Item | Valor confirmado | Como |
+   |---|---|---|
+   | Chaves assimétricas | `ES256` (EC P-256), `key_ops: ["verify"]` | JWKS |
+   | URL do JWKS | `…/auth/v1/.well-known/jwks.json` | Descoberta OIDC |
+   | `iss` | `https://muytfdmcnzgdrebverjq.supabase.co/auth/v1` | Descoberta OIDC + token real |
+   | `aud` | `authenticated` | Token real |
+   | Vida do access token | 60 minutos | Token real |
+   | `disable_signup` | `true` (Req 1.9) | `/auth/v1/settings` |
+   | Provedores ativos | apenas `email` | `/auth/v1/settings` |
+   | Confirmação de e-mail | exigida (`mailer_autoconfirm: false`) | `/auth/v1/settings` |
+
+   A validação completa via JWKS com PyJWT foi executada com um token real e passou:
+   a abordagem desta seção está comprovada nesta configuração.
+
 2. **Versões das dependências** — fixar conferindo a fonte oficial.
 3. **Largura do PDF** — validar com um cliente de muitos itens no período, para calibrar
    o ponto de redução de fonte.
 4. **Limite da rota de prévia** — calibrar o rate limit com o uso real, considerando o
    debounce de 400ms durante a digitação.
+5. **Entrega de e-mail** — o projeto usa o SMTP embutido do Supabase, destinado a teste e
+   com limite de envio. Validar com um fluxo real de recuperação de senha e decidir se
+   configuramos SMTP próprio antes de ir a produção (afeta o Req 1.10).
