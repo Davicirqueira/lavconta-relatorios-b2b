@@ -22,10 +22,15 @@ ESCOPO HONESTO DESTA CAMADA
 """
 
 import uuid
+from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 from typing import Protocol
 
+from app.dominio import PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
+from app.models.preco import Preco
 
 
 class RepositorioClienteProtocolo(Protocol):
@@ -46,6 +51,38 @@ class RepositorioClienteProtocolo(Protocol):
     def sincronizar(self) -> None:
         """Aplica alterações pendentes, disparando as constraints do banco."""
         ...
+
+
+class RepositorioPrecoProtocolo(Protocol):
+    def resolver_vigentes(
+        self,
+        cliente_id: uuid.UUID,
+        item_ids: Sequence[uuid.UUID],
+        mes_referencia: date,
+    ) -> dict[uuid.UUID, PrecoVigente]:
+        """Preço vigente de cada item no mês de referência.
+
+        Item ausente no retorno não tem preço definido até aquele mês.
+        """
+        ...
+
+    def obter_do_mes(
+        self, cliente_id: uuid.UUID, item_id: uuid.UUID, vigencia_mes: date
+    ) -> Preco | None:
+        """Preço definido exatamente naquele mês, sem resolver propagação."""
+        ...
+
+    def existe_algum(self, cliente_id: uuid.UUID, item_id: uuid.UUID) -> bool: ...
+
+    def inserir(
+        self,
+        cliente_id: uuid.UUID,
+        item_id: uuid.UUID,
+        vigencia_mes: date,
+        valor_unitario: Decimal,
+    ) -> Preco: ...
+
+    def sincronizar(self) -> None: ...
 
 
 class RepositorioItemProtocolo(Protocol):

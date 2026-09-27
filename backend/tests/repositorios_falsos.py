@@ -12,9 +12,14 @@ gerada só existem no banco real e têm suíte própria em ``test_constraints.py
 """
 
 import uuid
+from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 
+from app.dominio import PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
+from app.models.preco import Preco
 
 
 def _normalizar(nome: str) -> str:
@@ -133,6 +138,92 @@ class RepositorioItemFalso:
 
     def excluir(self, item: Item) -> None:
         self.registros.pop(item.id, None)
+
+    def sincronizar(self) -> None:
+        self.sincronizacoes += 1
+
+
+class RepositorioPrecoFalso:
+    """Emula ``RepositorioPrecoProtocolo`` em memória.
+
+    A resolução replica em Python o que o ``DISTINCT ON`` faz no banco: entre os
+    preços com vigência até o mês de referência, vence o de vigência mais recente.
+
+    Reimplementar a regra aqui é intencional. Se a consulta SQL e esta versão
+    divergirem, os testes contra Postgres em ``test_constraints.py`` e os de API
+    acusam — e a divergência aponta defeito em uma das duas.
+    """
+
+    def __init__(self) -> None:
+        # (cliente_id, item_id, vigencia_mes) -> Preco
+        self.registros: dict[tuple[uuid.UUID, uuid.UUID, date], Preco] = {}
+        self.sincronizacoes = 0
+
+    # --- apoio para os testes ---------------------------------------------
+
+    def semear(
+        self,
+        cliente_id: uuid.UUID,
+        item_id: uuid.UUID,
+        vigencia_mes: date,
+        valor: str,
+    ) -> Preco:
+        return self.inserir(cliente_id, item_id, vigencia_mes, Decimal(valor))
+
+    # --- contrato ---------------------------------------------------------
+
+    def resolver_vigentes(
+        self,
+        cliente_id: uuid.UUID,
+        item_ids: Sequence[uuid.UUID],
+        mes_referencia: date,
+    ) -> dict[uuid.UUID, PrecoVigente]:
+        if not item_ids:
+            return {}
+
+        procurados = set(item_ids)
+        candidatos: dict[uuid.UUID, Preco] = {}
+
+        for (cli, item, vigencia), preco in self.registros.items():
+            if cli != cliente_id or item not in procurados or vigencia > mes_referencia:
+                continue
+            atual = candidatos.get(item)
+            if atual is None or vigencia > atual.vigencia_mes:
+                candidatos[item] = preco
+
+        return {
+            item_id: PrecoVigente(
+                item_id=item_id,
+                valor_unitario=preco.valor_unitario,
+                vigencia_origem=preco.vigencia_mes,
+            )
+            for item_id, preco in candidatos.items()
+        }
+
+    def obter_do_mes(
+        self, cliente_id: uuid.UUID, item_id: uuid.UUID, vigencia_mes: date
+    ) -> Preco | None:
+        return self.registros.get((cliente_id, item_id, vigencia_mes))
+
+    def existe_algum(self, cliente_id: uuid.UUID, item_id: uuid.UUID) -> bool:
+        return any(cli == cliente_id and item == item_id for cli, item, _ in self.registros)
+
+    def inserir(
+        self,
+        cliente_id: uuid.UUID,
+        item_id: uuid.UUID,
+        vigencia_mes: date,
+        valor_unitario: Decimal,
+    ) -> Preco:
+        preco = Preco(
+            cliente_id=cliente_id,
+            item_id=item_id,
+            vigencia_mes=vigencia_mes,
+            valor_unitario=valor_unitario,
+        )
+        preco.id = uuid.uuid4()
+        self.registros[(cliente_id, item_id, vigencia_mes)] = preco
+        return preco
 
     def sincronizar(self) -> None:
         self.sincronizacoes += 1

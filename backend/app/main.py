@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import obter_configuracao
 from app.core.erros import CodigoErro, ErroDeDominio
-from app.routers import clientes, itens
+from app.routers import clientes, itens, precos
 
 logger = logging.getLogger("lavconta")
 
@@ -124,6 +124,7 @@ def criar_app() -> FastAPI:
     # APIRouter; o teste estrutural em tests/test_autenticacao.py confirma.
     aplicacao.include_router(clientes.router)
     aplicacao.include_router(itens.router)
+    aplicacao.include_router(precos.router)
 
     return aplicacao
 
