@@ -128,7 +128,7 @@ class TestColunasDeItem:
         fechamento: RepositorioFechamentoFalso,
         cliente_id: uuid.UUID,
     ) -> None:
-        """"Roupão" fica entre Lençol e Toalha, não depois do Z."""
+        """ "Roupão" fica entre Lençol e Toalha, não depois do Z."""
         semear_lancamento(
             fechamento,
             date(2026, 9, 1),
@@ -264,8 +264,12 @@ class TestTotais:
         fechamento: RepositorioFechamentoFalso,
         cliente_id: uuid.UUID,
     ) -> None:
-        semear_lancamento(fechamento, date(2026, 9, 1), {LENCOL: (40, "4.50"), FRONHA: (30, "3.50")})
-        semear_lancamento(fechamento, date(2026, 9, 3), {LENCOL: (50, "4.50"), FRONHA: (40, "3.50")})
+        semear_lancamento(
+            fechamento, date(2026, 9, 1), {LENCOL: (40, "4.50"), FRONHA: (30, "3.50")}
+        )
+        semear_lancamento(
+            fechamento, date(2026, 9, 3), {LENCOL: (50, "4.50"), FRONHA: (40, "3.50")}
+        )
 
         totais = servico.gerar(cliente_id, SETEMBRO_INICIO, SETEMBRO_FIM).totais
 
@@ -311,12 +315,8 @@ class TestTotais:
 
         relatorio = servico.gerar(cliente_id, SETEMBRO_INICIO, SETEMBRO_FIM)
 
-        assert relatorio.totais.total_valor == sum(
-            linha.total_valor for linha in relatorio.linhas
-        )
-        assert relatorio.totais.total_pecas == sum(
-            linha.total_pecas for linha in relatorio.linhas
-        )
+        assert relatorio.totais.total_valor == sum(linha.total_valor for linha in relatorio.linhas)
+        assert relatorio.totais.total_pecas == sum(linha.total_pecas for linha in relatorio.linhas)
 
     def test_total_por_item_e_a_soma_da_coluna(
         self,
@@ -342,7 +342,9 @@ class TestResumo:
         cliente_id: uuid.UUID,
     ) -> None:
         """Regressão do defeito B1: cartões e rodapé nunca podem divergir."""
-        semear_lancamento(fechamento, date(2026, 9, 1), {LENCOL: (40, "4.50"), FRONHA: (30, "3.50")})
+        semear_lancamento(
+            fechamento, date(2026, 9, 1), {LENCOL: (40, "4.50"), FRONHA: (30, "3.50")}
+        )
         semear_lancamento(fechamento, date(2026, 9, 3), {LENCOL: (50, "4.50")})
         semear_lancamento(fechamento, date(2026, 9, 7), {TOALHA: (13, "6.15")})
 

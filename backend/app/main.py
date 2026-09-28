@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import obter_configuracao
 from app.core.erros import CodigoErro, ErroDeDominio
-from app.routers import clientes, itens, lancamentos, precos
+from app.routers import clientes, itens, lancamentos, precos, relatorio
 
 logger = logging.getLogger("lavconta")
 
@@ -126,6 +126,7 @@ def criar_app() -> FastAPI:
     aplicacao.include_router(itens.router)
     aplicacao.include_router(precos.router)
     aplicacao.include_router(lancamentos.router)
+    aplicacao.include_router(relatorio.router)
 
     return aplicacao
 

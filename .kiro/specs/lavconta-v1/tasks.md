@@ -215,7 +215,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 7 — Relatório e exportação
 
-- [ ] 28. Implementar a geração do relatório
+- [x] 28. Implementar a geração do relatório
   - `servico_relatorio.gerar` com a consulta única do design §9.4
   - Validar `inicio <= fim` → `PERIODO_INVALIDO`
   - Colunas apenas dos itens presentes no período, em ordem alfabética
@@ -223,7 +223,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - `totais` e `resumo` derivados da **mesma** agregação
   - _Requisitos: 7.1–7.14_
 
-- [ ] 29. Escrever os testes de relatório
+- [x] 29. Escrever os testes de relatório
   - Colunas só de itens com ocorrência; item do catálogo sem ocorrência não gera coluna
   - Lançamento sem comanda mantém a estrutura da linha
   - Período cruzando meses soma valores congelados distintos, sem reaplicar preço
@@ -232,7 +232,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - **`resumo` e `totais` coincidem sempre** (regressão do defeito B1)
   - _Requisitos: 7.7, 7.8, 7.9, 7.12, 7.13_
 
-- [ ] 30. Expor o endpoint de relatório
+- [x] 30. Expor o endpoint de relatório
   - `GET /api/relatorio` com cliente e período obrigatórios
   - _Requisitos: 7.1, 7.2_
 
