@@ -207,7 +207,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Lançamento em 31 e em 01 não muda de mês; data futura recusada
   - _Requisitos: 5.15, 6.1–6.6, 11.5_
 
-- [ ] 27. Expor os endpoints de lançamentos
+- [x] 27. Expor os endpoints de lançamentos
   - GET com filtro de cliente e período, POST, `POST /previa`, GET por id, PUT, DELETE
   - _Requisitos: 5.1–5.23_
 

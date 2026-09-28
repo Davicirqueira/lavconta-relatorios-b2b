@@ -27,7 +27,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
-from app.dominio import PrecoVigente
+from app.dominio import LinhaDeFechamento, PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.preco import Preco
@@ -103,3 +103,22 @@ class RepositorioItemProtocolo(Protocol):
     def excluir(self, item: Item) -> None: ...
 
     def sincronizar(self) -> None: ...
+
+
+class RepositorioFechamentoProtocolo(Protocol):
+    """Recorte do repositório de lançamento usado pelo relatório.
+
+    Protocolo estreito de propósito: o serviço de relatório só lê, e declarar
+    apenas a consulta de que depende deixa explícito que ele não escreve nada.
+
+    Também é o que permite testar a agregação — colunas presentes, mapa de
+    quantidades, coincidência entre ``totais`` e ``resumo`` — sem Postgres. Essa
+    parte é aritmética em Python, não recurso de banco; o SQL real tem cobertura
+    própria nos testes de API.
+    """
+
+    def buscar_linhas_do_periodo(
+        self, cliente_id: uuid.UUID, inicio: date, fim: date
+    ) -> list[LinhaDeFechamento]:
+        """Linhas de lançamento do cliente no período, ordenadas por data."""
+        ...

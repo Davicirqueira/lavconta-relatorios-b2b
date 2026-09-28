@@ -26,6 +26,7 @@ class CodigoErro(StrEnum):
     NOME_DUPLICADO = "NOME_DUPLICADO"
     EXCLUSAO_COM_HISTORICO = "EXCLUSAO_COM_HISTORICO"
     NAO_ENCONTRADO = "NAO_ENCONTRADO"
+    MUITAS_REQUISICOES = "MUITAS_REQUISICOES"
     ERRO_INTERNO = "ERRO_INTERNO"
 
 
@@ -42,6 +43,7 @@ STATUS_HTTP_POR_CODIGO: dict[CodigoErro, int] = {
     CodigoErro.NOME_DUPLICADO: 409,
     CodigoErro.EXCLUSAO_COM_HISTORICO: 409,
     CodigoErro.NAO_ENCONTRADO: 404,
+    CodigoErro.MUITAS_REQUISICOES: 429,
     CodigoErro.ERRO_INTERNO: 500,
 }
 
@@ -143,9 +145,29 @@ def data_futura() -> ErroDeDominio:
 
 
 def periodo_invalido() -> ErroDeDominio:
+    """Período com data inicial após a final (Req 7.5).
+
+    Nomeia os dois campos para a tela poder destacar o par, não um campo isolado:
+    o erro está na relação entre eles, e o operador pode querer corrigir qualquer
+    um dos dois.
+    """
     return ErroDeDominio(
         CodigoErro.PERIODO_INVALIDO,
         "A data inicial não pode ser posterior à data final.",
+        {"campos": ["inicio", "fim"]},
+    )
+
+
+def muitas_requisicoes(limite: str) -> ErroDeDominio:
+    """Limite de requisições excedido.
+
+    Informa o limite configurado, que não é segredo: saber "30 por minuto" ajuda
+    quem usa a API legitimamente e não entrega nada a quem tenta abusar.
+    """
+    return ErroDeDominio(
+        CodigoErro.MUITAS_REQUISICOES,
+        "Muitas requisições em pouco tempo. Aguarde um momento e tente novamente.",
+        {"limite": limite},
     )
 
 

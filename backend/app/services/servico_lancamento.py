@@ -39,6 +39,7 @@ from app.core.erros import (
     itens_sem_preco,
     lancamento_duplicado,
     nao_encontrado,
+    periodo_invalido,
 )
 from app.dominio import (
     CalculoDeLancamento,
@@ -213,7 +214,8 @@ class ServicoLancamento:
         except IntegrityError as erro:
             self._relancar_traduzido(erro, data, comanda_normalizada)
 
-        return self._repositorio.obter_por_id(lancamento.id) or lancamento
+        self._repositorio.recarregar_linhas(lancamento)
+        return lancamento
 
     # ------------------------------------------------------------------
     # Edição (tarefa 23)
@@ -273,7 +275,9 @@ class ServicoLancamento:
         except IntegrityError as erro:
             self._relancar_traduzido(erro, data, comanda_normalizada)
 
-        return self._repositorio.obter_por_id(lancamento.id) or lancamento
+        # a coleção carregada no início não reflete as linhas inseridas/removidas
+        self._repositorio.recarregar_linhas(lancamento)
+        return lancamento
 
     def _substituir_linhas(self, lancamento: Lancamento, calculo: CalculoDeLancamento) -> None:
         """Ajusta as linhas para o conjunto calculado.
@@ -464,11 +468,7 @@ class ServicoLancamento:
     def listar(self, cliente_id: uuid.UUID, inicio: date, fim: date) -> list[Lancamento]:
         self._exigir_cliente(cliente_id)
         if inicio > fim:
-            raise ErroDeDominio(
-                CodigoErro.PERIODO_INVALIDO,
-                "A data inicial não pode ser posterior à data final.",
-                {"campos": ["inicio", "fim"]},
-            )
+            raise periodo_invalido()
         return self._repositorio.listar_por_periodo(cliente_id, inicio, fim)
 
     def mes_de_referencia(self, data: date) -> str:

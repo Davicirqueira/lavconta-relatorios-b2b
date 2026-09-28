@@ -7,6 +7,8 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.dominio import LinhaDeFechamento
+from app.models.item import Item
 from app.models.lancamento import Lancamento, LancamentoLinha
 
 
@@ -56,6 +58,61 @@ class RepositorioLancamento:
         )
         return list(self._sessao.scalars(consulta))
 
+    def buscar_linhas_do_periodo(
+        self, cliente_id: uuid.UUID, inicio: date, fim: date
+    ) -> list[LinhaDeFechamento]:
+        """Todas as linhas de lançamento do período, em **uma** consulta (Req 7.6).
+
+        Achatada em (lançamento, item) porque é o formato do ``join``; o serviço
+        agrupa por lançamento. Uma consulta só evita o N+1 que apareceria ao
+        buscar as linhas lançamento por lançamento.
+
+        ``inner join`` com as linhas: lançamento sem nenhuma linha não apareceria.
+        Não existe esse caso — criar e editar exigem ao menos uma linha — e, se
+        existisse, uma linha de fechamento com total zero seria ruído.
+
+        A ordenação por data atende o Req 7.9. A ordenação secundária por nome de
+        item existe só para tornar o resultado determinístico; a ordem das colunas
+        é decidida no serviço, sem depender da collation do banco.
+
+        Volume máximo: 31 lançamentos por mês por cliente (um por dia). Sem
+        paginação — a simplicidade aqui é escolha informada.
+        """
+        consulta = (
+            select(
+                Lancamento.id.label("lancamento_id"),
+                Lancamento.data,
+                Lancamento.comanda,
+                LancamentoLinha.item_id,
+                Item.nome.label("item_nome"),
+                LancamentoLinha.quantidade,
+                LancamentoLinha.valor_unitario_congelado,
+                LancamentoLinha.total,
+            )
+            .join(LancamentoLinha, LancamentoLinha.lancamento_id == Lancamento.id)
+            .join(Item, Item.id == LancamentoLinha.item_id)
+            .where(
+                Lancamento.cliente_id == cliente_id,
+                Lancamento.data >= inicio,
+                Lancamento.data <= fim,
+            )
+            .order_by(Lancamento.data, Item.nome)
+        )
+
+        return [
+            LinhaDeFechamento(
+                lancamento_id=registro.lancamento_id,
+                data=registro.data,
+                comanda=registro.comanda,
+                item_id=registro.item_id,
+                item_nome=registro.item_nome,
+                quantidade=registro.quantidade,
+                valor_unitario_congelado=registro.valor_unitario_congelado,
+                total=registro.total,
+            )
+            for registro in self._sessao.execute(consulta)
+        ]
+
     # --- escrita ----------------------------------------------------------
 
     def inserir(self, cliente_id: uuid.UUID, data: date, comanda: str | None) -> Lancamento:
@@ -89,6 +146,16 @@ class RepositorioLancamento:
         """Remove o lançamento; as linhas vão em cascata (Req 5.23)."""
         self._sessao.delete(lancamento)
         self._sessao.flush()
+
+    def recarregar_linhas(self, lancamento: Lancamento) -> None:
+        """Recarrega a coleção de linhas do banco.
+
+        Necessário depois de inserir ou remover linhas: a coleção já carregada na
+        sessão não reflete escritas feitas fora dela, e o objeto devolvido viria
+        com o conjunto obsoleto — linha adicionada não apareceria e linha removida
+        continuaria visível.
+        """
+        self._sessao.refresh(lancamento, ["linhas"])
 
     def sincronizar(self) -> None:
         self._sessao.flush()

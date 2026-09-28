@@ -106,3 +106,109 @@ class CalculoDeLancamento:
     @property
     def completo(self) -> bool:
         return not self.itens_sem_preco
+
+
+# ---------------------------------------------------------------------------
+# Relatório de fechamento (Req 7)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class LinhaDeFechamento:
+    """Uma linha de lançamento como o banco a devolve para o relatório.
+
+    Estrutura achatada, um registro por (lançamento, item): é o formato natural
+    do ``join`` da consulta única do relatório. O serviço agrupa por lançamento.
+
+    ``total`` vem da coluna gerada do banco, não de multiplicação em Python — é o
+    mesmo valor que a linha do lançamento sempre teve.
+    """
+
+    lancamento_id: uuid.UUID
+    data: date
+    comanda: str | None
+    item_id: uuid.UUID
+    item_nome: str
+    quantidade: int
+    valor_unitario_congelado: Decimal
+    total: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ColunaDeItem:
+    """Uma coluna de tipo de item no relatório.
+
+    Só existe coluna para item com **ocorrência no período** (Req 7.7). Item do
+    catálogo que ninguém pediu naquele intervalo não vira coluna vazia.
+    """
+
+    item_id: uuid.UUID
+    nome: str
+
+
+@dataclass(frozen=True, slots=True)
+class LinhaDoRelatorio:
+    """Uma linha do fechamento: um lançamento, com quantidade por item.
+
+    ``quantidades`` é **mapa** de ``item_id``, não lista posicional. Item ausente
+    no mapa significa célula vazia (Req 7.8), sem precisar enviar zeros e sem
+    risco de desalinhar valores e colunas.
+    """
+
+    lancamento_id: uuid.UUID
+    data: date
+    comanda: str | None
+    quantidades: dict[uuid.UUID, int]
+    total_pecas: int
+    total_valor: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class TotaisDoRelatorio:
+    """Rodapé da tabela: total por item e totais do período (Req 7.11)."""
+
+    por_item: dict[uuid.UUID, int]
+    total_pecas: int
+    total_valor: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ResumoDoRelatorio:
+    """Cartões do topo da tela.
+
+    Derivado de ``TotaisDoRelatorio``, nunca recalculado a partir das linhas. É a
+    correção estrutural do defeito B1 do protótipo, em que os cartões e o rodapé
+    da tabela exibiam totais diferentes.
+
+    ``media_diaria_pecas`` é métrica operacional de exibição: é a única divisão do
+    sistema e **não participa de valor cobrado**. Arredondada para inteiro.
+    """
+
+    total_pecas: int
+    total_valor: Decimal
+    quantidade_lancamentos: int
+    media_diaria_pecas: int
+
+
+@dataclass(frozen=True, slots=True)
+class Relatorio:
+    """Fechamento de um período para um cliente.
+
+    Estrutura única consumida por tela, PDF e Excel. Os módulos de exportação
+    **não recalculam nada** — se recalculassem, o documento enviado ao cliente
+    poderia divergir do que o operador viu.
+    """
+
+    cliente_id: uuid.UUID
+    cliente_nome: str
+    inicio: date
+    fim: date
+    colunas_itens: tuple[ColunaDeItem, ...]
+    linhas: tuple[LinhaDoRelatorio, ...]
+    totais: TotaisDoRelatorio
+    resumo: ResumoDoRelatorio
+
+    @property
+    def vazio(self) -> bool:
+        """Período sem nenhum lançamento (Req 7.13)."""
+        return not self.linhas

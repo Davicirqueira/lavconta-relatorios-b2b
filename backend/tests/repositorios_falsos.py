@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
-from app.dominio import PrecoVigente
+from app.dominio import LinhaDeFechamento, PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.lancamento import Lancamento, LancamentoLinha
@@ -317,6 +317,10 @@ class RepositorioLancamentoFalso:
         self.registros.pop(lancamento.id, None)
         self.linhas.pop(lancamento.id, None)
 
+    def recarregar_linhas(self, lancamento: Lancamento) -> None:
+        """Reassocia a lista de linhas, como o refresh do ORM faria."""
+        lancamento.linhas = self.linhas.get(lancamento.id, [])
+
     def sincronizar(self) -> None:
         self.sincronizacoes += 1
         self._recalcular_totais()
@@ -334,3 +338,57 @@ class RepositorioLancamentoFalso:
         for lista in self.linhas.values():
             for linha in lista:
                 linha.total = linha.valor_unitario_congelado * linha.quantidade
+
+
+class RepositorioFechamentoFalso:
+    """Emula ``RepositorioFechamentoProtocolo`` em memória.
+
+    Devolve linhas achatadas (lançamento × item), como o ``join`` da consulta
+    real. O que está sob teste com este falso é a **agregação em Python** —
+    colunas presentes, mapa de quantidades, coincidência entre ``totais`` e
+    ``resumo`` — que não depende de recurso de banco.
+
+    O SQL de verdade tem cobertura própria em ``test_api_relatorio.py``, contra
+    Postgres. Sem aquela suíte, este falso daria cobertura ilusória da consulta.
+    """
+
+    def __init__(self) -> None:
+        self.registros: list[LinhaDeFechamento] = []
+
+    # --- apoio para os testes ---------------------------------------------
+
+    def semear(
+        self,
+        lancamento_id: uuid.UUID,
+        data: date,
+        comanda: str | None,
+        item_id: uuid.UUID,
+        item_nome: str,
+        quantidade: int,
+        valor_unitario: str,
+    ) -> LinhaDeFechamento:
+        valor = Decimal(valor_unitario)
+        registro = LinhaDeFechamento(
+            lancamento_id=lancamento_id,
+            data=data,
+            comanda=comanda,
+            item_id=item_id,
+            item_nome=item_nome,
+            quantidade=quantidade,
+            valor_unitario_congelado=valor,
+            # emula a coluna gerada do banco
+            total=valor * quantidade,
+        )
+        self.registros.append(registro)
+        return registro
+
+    # --- contrato ---------------------------------------------------------
+
+    def buscar_linhas_do_periodo(
+        self, cliente_id: uuid.UUID, inicio: date, fim: date
+    ) -> list[LinhaDeFechamento]:
+        del cliente_id  # o falso guarda os registros de um cliente só
+        encontrados = [
+            registro for registro in self.registros if inicio <= registro.data <= fim
+        ]
+        return sorted(encontrados, key=lambda registro: (registro.data, registro.item_nome))
