@@ -13,10 +13,12 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import obter_configuracao
-from app.core.erros import CodigoErro, ErroDeDominio
+from app.core.erros import CodigoErro, ErroDeDominio, muitas_requisicoes
+from app.core.rate_limit import limiter
 from app.routers import clientes, itens, lancamentos, precos, relatorio
 
 logger = logging.getLogger("lavconta")
