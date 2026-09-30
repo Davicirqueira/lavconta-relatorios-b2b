@@ -1,0 +1,32 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 64px 32px;
+  text-align: center;
+}
+
+.icone {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--azul-50);
+  border-radius: var(--raio-xl);
+  color: var(--azul-400);
+}
+
+.titulo {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gelo-800);
+}
+
+.descricao {
+  font-size: 14px;
+  color: var(--gelo-600);
+  max-width: 400px;
+  line-height: 1.6;
+}

@@ -1,0 +1,52 @@
+.painel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background-color: var(--azul-50);
+  border: 1px solid var(--azul-200);
+  border-radius: var(--raio-lg);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.icone {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.onda {
+  display: inline-block;
+  width: 4px;
+  background-color: var(--azul-500);
+  border-radius: var(--raio-full);
+  animation: pulsar 1.2s ease-in-out infinite;
+}
+
+.onda:nth-child(1) { height: 10px; animation-delay: 0s; }
+.onda:nth-child(2) { height: 18px; animation-delay: 0.2s; }
+.onda:nth-child(3) { height: 12px; animation-delay: 0.4s; }
+
+@keyframes pulsar {
+  0%, 100% { opacity: 0.4; transform: scaleY(0.6); }
+  50%       { opacity: 1;   transform: scaleY(1); }
+}
+
+.texto {
+  min-width: 0;
+}
+
+.titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--azul-800);
+  margin-bottom: 2px;
+}
+
+.descricao {
+  font-size: 13px;
+  color: var(--azul-700);
+  line-height: 1.5;
+}

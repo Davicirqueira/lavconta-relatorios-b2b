@@ -1,0 +1,118 @@
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--raio-md);
+  cursor: pointer;
+  font-family: var(--fonte);
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-rapida) var(--ease-padrao),
+    box-shadow var(--dur-rapida) var(--ease-padrao),
+    transform 100ms var(--ease-padrao),
+    color var(--dur-rapida) var(--ease-padrao);
+}
+
+.botao:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Tamanhos --- */
+.sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.md {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.lg {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 15px;
+}
+
+/* --- Variante: primário --- */
+.primario {
+  background-color: var(--azul-600);
+  color: var(--branco);
+  box-shadow: var(--sombra-1);
+}
+
+.primario:hover:not(:disabled) {
+  background-color: var(--azul-500);
+  box-shadow: var(--sombra-2);
+}
+
+.primario:focus-visible {
+  background-color: var(--azul-600);
+}
+
+/* --- Variante: secundário --- */
+.secundario {
+  background-color: var(--branco);
+  color: var(--azul-700);
+  border: 1px solid var(--gelo-300);
+  box-shadow: var(--sombra-1);
+}
+
+.secundario:hover:not(:disabled) {
+  background-color: var(--gelo-50);
+  border-color: var(--gelo-400);
+}
+
+/* --- Variante: destrutivo --- */
+.destrutivo {
+  background-color: var(--erro-base);
+  color: var(--branco);
+  box-shadow: var(--sombra-1);
+}
+
+.destrutivo:hover:not(:disabled) {
+  background-color: var(--erro-forte);
+  box-shadow: var(--sombra-2);
+}
+
+/* --- Variante: fantasma --- */
+.fantasma {
+  background-color: transparent;
+  color: var(--azul-700);
+}
+
+.fantasma:hover:not(:disabled) {
+  background-color: var(--azul-50);
+}
+
+/* --- Estado carregando --- */
+.carregando {
+  cursor: wait;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentcolor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.6s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}

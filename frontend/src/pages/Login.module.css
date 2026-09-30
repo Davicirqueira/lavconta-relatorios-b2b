@@ -1,0 +1,88 @@
+.fundo {
+  min-height: 100dvh;
+  background-color: var(--gelo-50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cartao {
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-xl);
+  box-shadow: var(--sombra-2);
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.marca {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.logotipo {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--azul-800);
+  letter-spacing: -0.02em;
+}
+
+.subtitulo {
+  font-size: 13px;
+  color: var(--gelo-500);
+  margin-top: 4px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.linkEsqueci {
+  text-align: center;
+  font-size: 13px;
+  color: var(--azul-600);
+  text-decoration: none;
+  margin-top: 4px;
+}
+
+.linkEsqueci:hover {
+  text-decoration: underline;
+}
+
+.erro {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background-color: var(--erro-suave);
+  border: 1px solid var(--erro-borda);
+  border-radius: var(--raio-md);
+  font-size: 14px;
+  color: var(--erro-forte);
+}
+
+.sucesso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background-color: var(--sucesso-suave);
+  border: 1px solid var(--sucesso-borda);
+  border-radius: var(--raio-md);
+  font-size: 14px;
+  color: var(--sucesso-forte);
+}

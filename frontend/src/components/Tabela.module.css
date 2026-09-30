@@ -1,0 +1,98 @@
+.container {
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+  overflow: hidden; /* respeita o border-radius */
+}
+
+/* Wrapper para scroll horizontal sem perder o sticky header */
+.scroll {
+  overflow-x: auto;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* Cabeçalho --- */
+.cabecalho {
+  background-color: var(--gelo-100);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gelo-600);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--gelo-200);
+}
+
+.th.direita {
+  text-align: right;
+}
+
+.th.centro {
+  text-align: center;
+}
+
+/* Linhas de dado --- */
+.tr {
+  border-bottom: 1px solid var(--gelo-200);
+  transition: background-color var(--dur-rapida) var(--ease-padrao);
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.tr:hover {
+  background-color: var(--azul-50);
+}
+
+.td {
+  padding: 12px 16px;
+  color: var(--gelo-700);
+  vertical-align: middle;
+}
+
+.td.direita {
+  text-align: right;
+}
+
+.td.centro {
+  text-align: center;
+}
+
+/* Linha de totais --- */
+.trTotais {
+  background-color: var(--gelo-50);
+  border-top: 2px solid var(--gelo-300);
+  border-bottom: none;
+}
+
+.trTotais .td {
+  font-weight: 600;
+  color: var(--gelo-900);
+}
+
+.trTotais:hover {
+  background-color: var(--gelo-50); /* não destaca no hover */
+}
+
+/* Ações (coluna de botões) --- */
+.acoes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}

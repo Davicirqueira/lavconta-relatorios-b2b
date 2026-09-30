@@ -1,0 +1,78 @@
+.regiao {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--branco);
+  border-radius: var(--raio-md);
+  box-shadow: var(--sombra-2);
+  padding: 14px 16px;
+  max-width: 360px;
+  pointer-events: all;
+  animation: entrar var(--dur-padrao) var(--ease-padrao) both;
+  position: relative;
+  overflow: hidden;
+}
+
+.barra {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.sucesso .barra { background-color: var(--sucesso-base); }
+.erro .barra    { background-color: var(--erro-base); }
+.alerta .barra  { background-color: var(--alerta-base); }
+.info .barra    { background-color: var(--azul-600); }
+
+.conteudo {
+  flex: 1;
+  min-width: 0;
+  padding-left: 6px;
+}
+
+.mensagem {
+  font-size: 14px;
+  color: var(--gelo-700);
+  line-height: 1.5;
+}
+
+.fechar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--raio-sm);
+  color: var(--gelo-400);
+  cursor: pointer;
+  transition: color var(--dur-rapida);
+}
+
+.fechar:hover { color: var(--gelo-700); }
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

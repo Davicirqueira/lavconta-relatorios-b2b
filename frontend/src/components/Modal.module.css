@@ -1,0 +1,85 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(11, 47, 88, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+  animation: fadeIn var(--dur-rapida) var(--ease-padrao) both;
+}
+
+.painel {
+  background: var(--branco);
+  border-radius: var(--raio-xl);
+  box-shadow: var(--sombra-3);
+  padding: 28px;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  animation: entrar var(--dur-padrao) var(--ease-padrao) both;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.titulo {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gelo-800);
+  letter-spacing: -0.01em;
+}
+
+.fechar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--raio-sm);
+  color: var(--gelo-500);
+  cursor: pointer;
+  transition: background-color var(--dur-rapida);
+}
+
+.fechar:hover {
+  background-color: var(--gelo-100);
+  color: var(--gelo-700);
+}
+
+.corpo {
+  /* herdado do conteúdo */
+}
+
+.rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

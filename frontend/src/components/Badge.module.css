@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--raio-full);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+/* Sucesso */
+.sucesso {
+  background-color: var(--sucesso-suave);
+  border-color: var(--sucesso-borda);
+  color: var(--sucesso-forte);
+}
+
+/* Erro */
+.erro {
+  background-color: var(--erro-suave);
+  border-color: var(--erro-borda);
+  color: var(--erro-forte);
+}
+
+/* Alerta — texto escuro (ver nota de contraste em id-visual.md §4) */
+.alerta {
+  background-color: var(--alerta-suave);
+  border-color: var(--alerta-borda);
+  color: var(--alerta-forte);
+}
+
+/* Info — usa a escala azul */
+.info {
+  background-color: var(--azul-50);
+  border-color: var(--azul-200);
+  color: var(--azul-700);
+}
+
+/* Neutro */
+.neutro {
+  background-color: var(--gelo-100);
+  border-color: var(--gelo-200);
+  color: var(--gelo-600);
+}

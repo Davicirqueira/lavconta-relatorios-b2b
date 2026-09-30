@@ -1,0 +1,60 @@
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rotulo {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gelo-700);
+}
+
+.input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--gelo-300);
+  border-radius: var(--raio-md);
+  background-color: var(--branco);
+  color: var(--gelo-900);
+  font-family: var(--fonte);
+  font-size: 14px;
+  transition:
+    border-color 160ms var(--ease-padrao),
+    box-shadow 160ms var(--ease-padrao);
+}
+
+.input::placeholder {
+  color: var(--gelo-400);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--azul-600);
+  box-shadow: var(--sombra-foco);
+}
+
+.input:disabled {
+  background-color: var(--gelo-100);
+  color: var(--gelo-500);
+  cursor: not-allowed;
+}
+
+.comErro {
+  border-color: var(--erro-base);
+}
+
+.comErro:focus {
+  border-color: var(--erro-base);
+  box-shadow: 0 0 0 3px rgba(208, 55, 57, 0.18);
+}
+
+.dica {
+  font-size: 12px;
+  color: var(--gelo-600);
+}
+
+.erroTexto {
+  font-size: 12px;
+  color: var(--erro-forte);
+}

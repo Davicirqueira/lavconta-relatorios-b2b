@@ -1,0 +1,41 @@
+import { Routes, Route, Navigate } from "react-router";
+
+import { RotaProtegida } from "@/features/auth/RotaProtegida";
+import { PaginaLogin } from "@/pages/Login";
+import { PaginaEsqueciSenha } from "@/pages/EsqueciSenha";
+import { PaginaRedefinirSenha } from "@/pages/RedefinirSenha";
+import { Layout } from "@/components/Layout";
+import { PaginaLancamentos } from "@/pages/Lancamentos";
+import { PaginaRelatorio } from "@/pages/Relatorio";
+import { PaginaClientes } from "@/pages/Clientes";
+import { PaginaCatalogo } from "@/pages/Catalogo";
+import { PaginaPrecos } from "@/pages/Precos";
+import { ToastProvider } from "@/components/Toast";
+
+export function App() {
+  return (
+    <ToastProvider>
+      <Routes>
+        {/* Rotas públicas */}
+        <Route path="/login" element={<PaginaLogin />} />
+        <Route path="/esqueci-senha" element={<PaginaEsqueciSenha />} />
+        <Route path="/redefinir-senha" element={<PaginaRedefinirSenha />} />
+
+        {/* Rotas protegidas dentro do layout com sidebar */}
+        <Route element={<RotaProtegida />}>
+          <Route element={<Layout />}>
+            <Route index element={<Navigate to="/lancamentos" replace />} />
+            <Route path="/lancamentos" element={<PaginaLancamentos />} />
+            <Route path="/relatorio" element={<PaginaRelatorio />} />
+            <Route path="/clientes" element={<PaginaClientes />} />
+            <Route path="/catalogo" element={<PaginaCatalogo />} />
+            <Route path="/precos" element={<PaginaPrecos />} />
+          </Route>
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/lancamentos" replace />} />
+      </Routes>
+    </ToastProvider>
+  );
+}

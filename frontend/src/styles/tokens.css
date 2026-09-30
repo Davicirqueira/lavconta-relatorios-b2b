@@ -1,0 +1,113 @@
+/*
+ * Lavconta — tokens de design
+ *
+ * Fonte da verdade: .kiro/steering/id-visual.md §7 e prototipo/brief-design.md
+ * Este arquivo é importado uma vez em main.tsx e define toda a paleta,
+ * tipografia, sombras, raios e curvas de movimento da aplicação.
+ */
+
+:root {
+  /* ------------------------------------------------------------------ */
+  /* Azul (marca)                                                        */
+  /* ------------------------------------------------------------------ */
+  --azul-50: #f1f7ff;
+  --azul-100: #deedff;
+  --azul-200: #c1dcfe;
+  --azul-300: #9ec6f9;
+  --azul-400: #76acf1;
+  --azul-500: #4f91e2;
+  --azul-600: #2d74ca; /* primária: botões, links, foco */
+  --azul-700: #1c5ca6;
+  --azul-800: #13457e;
+  --azul-900: #0b2f58; /* sidebar e cabeçalho */
+
+  /* ------------------------------------------------------------------ */
+  /* Gelo e branco (superfícies e texto)                                 */
+  /* ------------------------------------------------------------------ */
+  --branco: #ffffff;
+  --gelo-50: #f8fafd; /* fundo do app */
+  --gelo-100: #f0f4f9;
+  --gelo-200: #e0e7ee;
+  --gelo-300: #cdd5df;
+  --gelo-400: #a2acb7;
+  --gelo-500: #76828e; /* só texto grande ou decorativo */
+  --gelo-600: #56626f;
+  --gelo-700: #3d4955;
+  --gelo-800: #252f3a;
+  --gelo-900: #141b24;
+
+  /* ------------------------------------------------------------------ */
+  /* Estados — tons médios                                               */
+  /* Cada estado: base (preenchimento/ícone), suave (fundo de alerta),  */
+  /* borda (contorno), forte (texto sobre fundo suave)                  */
+  /* ATENÇÃO: amarelo (alerta) nunca usa texto branco — usar gelo-900   */
+  /* ------------------------------------------------------------------ */
+  --sucesso-base: #1e8650;
+  --sucesso-suave: #e5faeb;
+  --sucesso-borda: #b4ddc0;
+  --sucesso-forte: #005e31;
+
+  --alerta-base: #e7b643;
+  --alerta-suave: #fdf2dd;
+  --alerta-borda: #e4cfa2;
+  --alerta-forte: #6a4500;
+
+  --erro-base: #d03739;
+  --erro-suave: #ffe9e5;
+  --erro-borda: #ffbcb5;
+  --erro-forte: #98181f;
+
+  /* ------------------------------------------------------------------ */
+  /* Tipografia                                                          */
+  /* "Inter Variable" é o nome exposto por @fontsource-variable/inter   */
+  /* ------------------------------------------------------------------ */
+  --fonte: "Inter Variable", "Inter", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+
+  /* ------------------------------------------------------------------ */
+  /* Elevação — sombras tingidas de azul-900 (nunca preto puro)         */
+  /* ------------------------------------------------------------------ */
+  --sombra-1: 0 1px 2px rgba(11, 47, 88, 0.06),
+    0 1px 3px rgba(11, 47, 88, 0.04);
+  --sombra-2: 0 2px 4px rgba(11, 47, 88, 0.06),
+    0 4px 12px rgba(11, 47, 88, 0.08);
+  --sombra-3: 0 8px 16px rgba(11, 47, 88, 0.08),
+    0 16px 32px rgba(11, 47, 88, 0.12);
+  --sombra-foco: 0 0 0 3px rgba(45, 116, 202, 0.18);
+
+  /* ------------------------------------------------------------------ */
+  /* Raio de canto                                                       */
+  /* ------------------------------------------------------------------ */
+  --raio-sm: 6px;   /* chips, badges, tooltips               */
+  --raio-md: 10px;  /* inputs, botões, seleções              */
+  --raio-lg: 14px;  /* cartões, containers de tabela          */
+  --raio-xl: 20px;  /* modais                                 */
+  --raio-full: 999px; /* pílulas e avatar                    */
+
+  /* ------------------------------------------------------------------ */
+  /* Movimento — durações                                                */
+  /* ------------------------------------------------------------------ */
+  --dur-rapida: 120ms;  /* hover, mudança de cor               */
+  --dur-padrao: 200ms;  /* entrada de componente, modal        */
+  --dur-lenta: 320ms;   /* transição de painel, indicador      */
+
+  /* ------------------------------------------------------------------ */
+  /* Movimento — curvas                                                  */
+  /* ------------------------------------------------------------------ */
+  --ease-padrao: cubic-bezier(0.2, 0, 0, 1);  /* ênfase, entradas    */
+  --ease-saida: cubic-bezier(0.4, 0, 1, 1);   /* saídas              */
+  --ease-suave: cubic-bezier(0.4, 0, 0.2, 1); /* transições neutras  */
+}
+
+/* -------------------------------------------------------------------- */
+/* Respeitar preferência de menos movimento (WCAG 2.5.3)               */
+/* -------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

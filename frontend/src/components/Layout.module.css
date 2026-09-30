@@ -1,0 +1,24 @@
+.shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.conteudo {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0; /* evita overflow em flex */
+  transition: all var(--dur-lenta) var(--ease-suave);
+}
+
+.inner {
+  padding: 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .inner {
+    padding: 20px 16px;
+  }
+}

@@ -1,0 +1,271 @@
+/* ------------------------------------------------------------------ */
+/* Sidebar — gradiente azul-900 → azul-800 (brief-design.md §5)       */
+/* ------------------------------------------------------------------ */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--azul-900) 0%, var(--azul-800) 100%);
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  width: var(--sidebar-largura);
+
+  /* Transição de largura acompanha a área de conteúdo */
+  transition: width var(--dur-lenta) var(--ease-suave);
+}
+
+/* Estado expandido/colapsado via CSS custom property injetada pelo React */
+.sidebar {
+  --sidebar-largura: 240px;
+}
+
+.sidebar[data-colapsada="true"] {
+  --sidebar-largura: 68px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Topo — marca / monograma                                            */
+/* ------------------------------------------------------------------ */
+
+.topo {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marcaNome {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--branco);
+  letter-spacing: -0.01em;
+  transition: opacity 80ms var(--ease-padrao);
+}
+
+/* Monograma "L" no estado colapsado */
+.monograma {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--raio-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--branco);
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: opacity var(--dur-padrao) var(--ease-padrao);
+}
+
+/* ------------------------------------------------------------------ */
+/* Navegação                                                           */
+/* ------------------------------------------------------------------ */
+
+.nav {
+  flex: 1;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: var(--raio-md);
+  color: var(--azul-300);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  transition:
+    background-color var(--dur-rapida) var(--ease-padrao),
+    color var(--dur-rapida) var(--ease-padrao);
+  position: relative;
+}
+
+.item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--branco);
+}
+
+.itemAtivo {
+  background-color: var(--azul-800);
+  color: var(--branco);
+}
+
+/* Barra indicadora de 3px na borda esquerda */
+.itemAtivo::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background-color: var(--azul-300);
+  border-radius: 0 var(--raio-sm) var(--raio-sm) 0;
+}
+
+.iconeItem {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rotuloItem {
+  transition: opacity 80ms var(--ease-padrao);
+  overflow: hidden;
+}
+
+/* Quando colapsada: rótulos somem em 80ms ANTES da largura contrair */
+.sidebar[data-colapsada="true"] .rotuloItem {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tooltip do rail (estado colapsado)                                  */
+/* ------------------------------------------------------------------ */
+
+.itemWrapper {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  background: var(--azul-900);
+  color: var(--branco);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: var(--raio-sm);
+  box-shadow: var(--sombra-2);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 120ms var(--ease-padrao),
+    transform 120ms var(--ease-padrao);
+  /* Delay de 400ms antes de aparecer */
+  transition-delay: 400ms;
+  z-index: 10;
+}
+
+.sidebar[data-colapsada="true"] .itemWrapper:hover .tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Rodapé — usuário e controle de colapso                             */
+/* ------------------------------------------------------------------ */
+
+.rodape {
+  padding: 12px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.usuario {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--raio-md);
+  overflow: hidden;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--raio-full);
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--branco);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.email {
+  font-size: 12px;
+  color: var(--azul-300);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  transition: opacity 80ms var(--ease-padrao);
+}
+
+.sidebar[data-colapsada="true"] .email {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.botaoColapso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--raio-md);
+  background: none;
+  border: none;
+  color: var(--azul-300);
+  cursor: pointer;
+  font-family: var(--fonte);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 100%;
+  transition:
+    background-color var(--dur-rapida),
+    color var(--dur-rapida);
+}
+
+.botaoColapso:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--branco);
+}
+
+.rotuloColapso {
+  transition: opacity 80ms var(--ease-padrao);
+}
+
+.sidebar[data-colapsada="true"] .rotuloColapso {
+  opacity: 0;
+  pointer-events: none;
+}

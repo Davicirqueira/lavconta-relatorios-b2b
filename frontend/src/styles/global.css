@@ -1,0 +1,103 @@
+/*
+ * Lavconta — estilos globais
+ *
+ * Reset mínimo + família única Inter + utilitários de número tabular.
+ * Importa os tokens antes de tudo.
+ */
+
+/* Fonte Inter variável auto-hospedada — subset latino, eixo de peso 400–600 */
+@import "@fontsource-variable/inter/wght.css";
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Previne zoom indesejado em iOS ao focar inputs */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  /* Família única em toda a aplicação (id-visual.md §2) */
+  font-family: var(--fonte);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--gelo-700);
+  background-color: var(--gelo-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* -------------------------------------------------------------------- */
+/* Células numéricas — alinhamento consistente dos dígitos              */
+/* Inter tem numerais proporcionais por padrão; tabular-nums os fixa    */
+/* -------------------------------------------------------------------- */
+.num,
+td.num,
+.valor {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------- */
+/* Foco visível — anel de foco destacado (WCAG 2.4.7)                  */
+/* -------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--azul-600);
+  outline-offset: 2px;
+  box-shadow: var(--sombra-foco);
+}
+
+/* Remove o outline padrão quando não for foco de teclado */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* -------------------------------------------------------------------- */
+/* Tipografia base — conforme brief-design.md §3                        */
+/* -------------------------------------------------------------------- */
+h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--gelo-800);
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--gelo-800);
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gelo-800);
+}
+
+/* -------------------------------------------------------------------- */
+/* Utilitários de layout                                                 */
+/* -------------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

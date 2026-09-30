@@ -267,7 +267,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 8 — Fundação do frontend
 
-- [ ] 35. Configurar o projeto Vite com os tokens visuais
+- [x] 35. Configurar o projeto Vite com os tokens visuais
   - Projeto React + TypeScript; dependências com versão exata e lockfile versionado
   - CSS global com os tokens de `id-visual.md`: cores, tipografia, sombras tingidas,
     raios, durações e curvas, e o bloco `prefers-reduced-motion`
@@ -275,26 +275,26 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
     aplicada em toda a aplicação; classe utilitária `.num` de numerais tabulares
   - _Requisitos: 9.9, 10.1, 10.2_
 
-- [ ] 36. Implementar os utilitários de data e dinheiro
+- [x] 36. Implementar os utilitários de data e dinheiro
   - `lib/datas.ts` com `paraExibicao`, `paraIso` e `hojeSp` — sem `new Date()` em data de
     negócio
   - `lib/dinheiro.ts` formatando a partir de string decimal com `Intl.NumberFormat('pt-BR')`
   - Testes: data 31/08 e 01/09 não mudam de dia em nenhuma conversão
   - _Requisitos: 10.3, 11.2, 11.3, 11.5_
 
-- [ ] 37. Implementar o cliente de API
+- [x] 37. Implementar o cliente de API
   - `lib/api.ts` injetando o JWT, traduzindo o envelope de erro em mensagens em
     português e expondo sinal de requisição lenta acima de 3s
   - _Requisitos: 1.3, 10.4, 10.6_
 
-- [ ] 38. Construir a biblioteca de componentes base
+- [x] 38. Construir a biblioteca de componentes base
   - `Botao` (primário, secundário, destrutivo, fantasma), `Campo`, `Selecao`,
     `CampoData`, `Tabela`, `Modal`, `DialogoConfirmacao`, `Toast`, `Skeleton`, `Chip`,
     `Badge`, `EstadoVazio`, `PainelServidorAcordando`
   - Animações conforme o catálogo de movimento do brief; foco visível; rótulos associados
   - _Requisitos: 10.1, 10.4, 10.5, 10.6_
 
-- [ ] 39. Construir o layout com sidebar colapsável
+- [x] 39. Construir o layout com sidebar colapsável
   - Sidebar com gradiente, ícones Lucide (`ClipboardList`, `FileBarChart2`, `Building2`,
     `Shirt`, `Tag`), barra indicadora deslizante do item ativo
   - Colapso 240px ↔ 68px: rótulos em fade antes de contrair a largura, conteúdo
@@ -302,7 +302,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - `aria-expanded` no controle; movimento respeitando `prefers-reduced-motion`
   - _Requisitos: 10.1, 10.5_
 
-- [ ] 40. Implementar autenticação no frontend
+- [x] 40. Implementar autenticação no frontend
   - Cliente Supabase, tela de login, recuperação e redefinição de senha
   - **Sem rota ou link de cadastro**; rotas protegidas redirecionando para login; aviso de
     sessão expirada
