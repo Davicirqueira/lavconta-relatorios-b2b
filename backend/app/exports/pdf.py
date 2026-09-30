@@ -92,7 +92,9 @@ def gerar_pdf(relatorio: Relatorio) -> bytes:
     # 1. Cabeçalho de identificação (Lavandix + Cliente + Período + Emissão)
     caminho_logo = Path(__file__).resolve().parent / "assets" / "lavandix-marca.png"
     emissao_texto = f"Emissão: {hoje_sp().strftime('%d/%m/%Y')}"
-    periodo_texto = f"Período: {relatorio.inicio.strftime('%d/%m/%Y')} a {relatorio.fim.strftime('%d/%m/%Y')}"
+    periodo_texto = (
+        f"Período: {relatorio.inicio.strftime('%d/%m/%Y')} a {relatorio.fim.strftime('%d/%m/%Y')}"
+    )
 
     logo_elemento = None
     if caminho_logo.exists():

@@ -14,6 +14,7 @@ import io
 import uuid
 from datetime import date
 from decimal import Decimal
+
 import openpyxl
 
 from app.dominio import (
@@ -95,7 +96,15 @@ class TestExportacaoExcel:
 
         # 2. Cabeçalho da tabela (linha 4)
         titulos = [ws.cell(row=4, column=col).value for col in range(1, 8)]
-        assert titulos == ["Data", "Comanda", "Fronha", "Lençol", "Toalha", "Total de peças", "Total R$"]
+        assert titulos == [
+            "Data",
+            "Comanda",
+            "Fronha",
+            "Lençol",
+            "Toalha",
+            "Total de peças",
+            "Total R$",
+        ]
 
         # 3. Linha 1 de dados (linha 5 da planilha)
         assert ws.cell(row=5, column=1).value == "01/09/2026"
@@ -148,7 +157,10 @@ class TestExportacaoExcel:
             linhas=(),
             totais=TotaisDoRelatorio(por_item={}, total_pecas=0, total_valor=Decimal("0.00")),
             resumo=ResumoDoRelatorio(
-                total_pecas=0, total_valor=Decimal("0.00"), quantidade_lancamentos=0, media_diaria_pecas=0
+                total_pecas=0,
+                total_valor=Decimal("0.00"),
+                quantidade_lancamentos=0,
+                media_diaria_pecas=0,
             ),
         )
         conteudo = gerar_excel(relatorio)

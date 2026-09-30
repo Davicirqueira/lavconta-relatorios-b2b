@@ -9,9 +9,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.core.banco import SessaoBanco
+from app.core.rate_limit import limiter
 from app.core.seguranca import usuario_atual
 from app.dominio import LinhaSolicitada
 from app.models.lancamento import Lancamento
@@ -99,7 +100,10 @@ def listar_lancamentos(
 
 
 @router.post("", response_model=LancamentoResposta, status_code=status.HTTP_201_CREATED)
-def criar_lancamento(corpo: LancamentoEntrada, sessao: SessaoBanco) -> LancamentoResposta:
+@limiter.limit("60/minute")
+def criar_lancamento(
+    request: Request, corpo: LancamentoEntrada, sessao: SessaoBanco
+) -> LancamentoResposta:
     """Cria o lançamento congelando o valor de cada linha.
 
     Recusa quando algum item não tem preço vigente para o mês da data, nomeando
@@ -112,11 +116,15 @@ def criar_lancamento(corpo: LancamentoEntrada, sessao: SessaoBanco) -> Lancament
 
 
 @router.post("/previa", response_model=PreviaResposta)
-def calcular_previa(corpo: PreviaEntrada, sessao: SessaoBanco) -> PreviaResposta:
+@limiter.limit("180/minute")
+def calcular_previa(request: Request, corpo: PreviaEntrada, sessao: SessaoBanco) -> PreviaResposta:
     """Calcula os totais sem gravar nada.
 
     Alimenta a barra de totais da interface enquanto o operador digita, mantendo a
     autoridade de cálculo no servidor.
+
+    Limite mais permissivo que as rotas de escrita: é chamada com debounce de
+    400ms durante a digitação e não altera estado (design §9.3, §12).
 
     Não falha por item sem preço: devolve `itens_sem_preco` e calcula o total com
     os demais. A recusa dura acontece ao salvar.
@@ -145,8 +153,12 @@ def obter_lancamento(lancamento_id: uuid.UUID, sessao: SessaoBanco) -> Lancament
 
 
 @router.put("/{lancamento_id}", response_model=LancamentoResposta)
+@limiter.limit("60/minute")
 def editar_lancamento(
-    lancamento_id: uuid.UUID, corpo: LancamentoEntrada, sessao: SessaoBanco
+    request: Request,
+    lancamento_id: uuid.UUID,
+    corpo: LancamentoEntrada,
+    sessao: SessaoBanco,
 ) -> LancamentoResposta:
     """Edita o lançamento preservando o valor congelado das linhas existentes.
 
@@ -164,7 +176,8 @@ def editar_lancamento(
 
 
 @router.delete("/{lancamento_id}", status_code=status.HTTP_204_NO_CONTENT)
-def excluir_lancamento(lancamento_id: uuid.UUID, sessao: SessaoBanco) -> None:
+@limiter.limit("60/minute")
+def excluir_lancamento(request: Request, lancamento_id: uuid.UUID, sessao: SessaoBanco) -> None:
     """Exclui o lançamento e suas linhas.
 
     A confirmação "Tem certeza?" é responsabilidade da interface: a API não tem

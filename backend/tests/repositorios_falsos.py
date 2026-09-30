@@ -388,7 +388,5 @@ class RepositorioFechamentoFalso:
         self, cliente_id: uuid.UUID, inicio: date, fim: date
     ) -> list[LinhaDeFechamento]:
         del cliente_id  # o falso guarda os registros de um cliente só
-        encontrados = [
-            registro for registro in self.registros if inicio <= registro.data <= fim
-        ]
+        encontrados = [registro for registro in self.registros if inicio <= registro.data <= fim]
         return sorted(encontrados, key=lambda registro: (registro.data, registro.item_nome))

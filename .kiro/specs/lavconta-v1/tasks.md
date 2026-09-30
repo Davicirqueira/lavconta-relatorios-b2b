@@ -236,14 +236,14 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - `GET /api/relatorio` com cliente e período obrigatórios
   - _Requisitos: 7.1, 7.2_
 
-- [ ] 31. Implementar a exportação Excel
+- [x] 31. Implementar a exportação Excel
   - `exports/excel.py` com `openpyxl`, consumindo a estrutura já calculada
   - Quantidades como inteiro e valores como número com formato monetário — células
     numéricas reais
   - Cabeçalho com cliente e período; linha de totais destacada; primeira linha congelada
   - _Requisitos: 8.2, 8.3, 8.5, 8.6_
 
-- [ ] 32. Implementar a exportação PDF
+- [x] 32. Implementar a exportação PDF
   - `exports/pdf.py` com `reportlab` em A4 paisagem, tabela via `platypus`
   - Cabeçalho com cliente, período e data de geração; linha de totais destacada
   - Registrar a TTF do Inter (400 e 600) com `pdfmetrics.registerFont`, em vez da
@@ -252,13 +252,13 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
     Total de peças e Total R$
   - _Requisitos: 8.2, 8.3, 8.5_
 
-- [ ] 33. Expor os endpoints de exportação
+- [x] 33. Expor os endpoints de exportação
   - `GET /api/relatorio/pdf` e `/excel` com `Content-Disposition`, nome descritivo do
     arquivo e `content-type` correto
   - Teste: ambos os formatos reproduzem os mesmos totais do relatório em tela
   - _Requisitos: 8.1, 8.4_
 
-- [ ] 34. Aplicar rate limiting
+- [x] 34. Aplicar rate limiting
   - `slowapi` nas rotas de escrita e exportação; limite próprio, mais permissivo, para
     `/api/lancamentos/previa`
   - _Requisitos: definido em `engineering.md` §4; design §12_

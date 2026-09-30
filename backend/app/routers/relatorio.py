@@ -104,4 +104,3 @@ def exportar_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
     )
-

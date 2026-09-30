@@ -6,6 +6,7 @@ float formatado como moeda), permitindo conferência e soma no próprio Excel (R
 """
 
 import io
+
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -22,7 +23,7 @@ COR_GELO_600 = "56626F"
 COR_GELO_900 = "141B24"
 
 # Formato monetário padrão brasileiro para células numéricas do Excel
-FORMATO_MOEDA = 'R$ #,##0.00'
+FORMATO_MOEDA = "R$ #,##0.00"
 
 
 def gerar_excel(relatorio: Relatorio) -> bytes:
@@ -53,12 +54,8 @@ def gerar_excel(relatorio: Relatorio) -> bytes:
     )
 
     borda_fina = Side(style="thin", color=COR_GELO_300)
-    borda_cabecalho = Border(
-        left=borda_fina, right=borda_fina, top=borda_fina, bottom=borda_fina
-    )
-    borda_dados = Border(
-        left=borda_fina, right=borda_fina, top=borda_fina, bottom=borda_fina
-    )
+    borda_cabecalho = Border(left=borda_fina, right=borda_fina, top=borda_fina, bottom=borda_fina)
+    borda_dados = Border(left=borda_fina, right=borda_fina, top=borda_fina, bottom=borda_fina)
     borda_totais = Border(
         left=borda_fina,
         right=borda_fina,
@@ -160,14 +157,18 @@ def gerar_excel(relatorio: Relatorio) -> bytes:
         c_tot_item.border = borda_totais
         col_offset += 1
 
-    c_tot_pecas = ws.cell(row=linha_atual, column=col_offset, value=int(relatorio.totais.total_pecas))
+    c_tot_pecas = ws.cell(
+        row=linha_atual, column=col_offset, value=int(relatorio.totais.total_pecas)
+    )
     c_tot_pecas.font = fonte_totais
     c_tot_pecas.fill = preenchimento_totais
     c_tot_pecas.alignment = alinhamento_direita
     c_tot_pecas.border = borda_totais
     col_offset += 1
 
-    c_tot_valor = ws.cell(row=linha_atual, column=col_offset, value=float(relatorio.totais.total_valor))
+    c_tot_valor = ws.cell(
+        row=linha_atual, column=col_offset, value=float(relatorio.totais.total_valor)
+    )
     c_tot_valor.font = fonte_totais
     c_tot_valor.fill = preenchimento_totais
     c_tot_valor.alignment = alinhamento_direita
@@ -182,7 +183,11 @@ def gerar_excel(relatorio: Relatorio) -> bytes:
             if cell.value is not None:
                 # Se for valor monetário, estimar tamanho com a formatação
                 if cell.number_format == FORMATO_MOEDA:
-                    val_str = f"R$ {cell.value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    val_str = (
+                        f"R$ {cell.value:,.2f}".replace(",", "X")
+                        .replace(".", ",")
+                        .replace("X", ".")
+                    )
                 else:
                     val_str = str(cell.value)
                 max_tam = max(max_tam, len(val_str))

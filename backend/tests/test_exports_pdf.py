@@ -24,8 +24,7 @@ from app.exports.pdf import _formatar_moeda, gerar_pdf
 
 def criar_relatorio_de_teste(num_itens: int = 3) -> Relatorio:
     colunas = tuple(
-        ColunaDeItem(item_id=uuid.uuid4(), nome=f"Item {i+1}")
-        for i in range(num_itens)
+        ColunaDeItem(item_id=uuid.uuid4(), nome=f"Item {i + 1}") for i in range(num_itens)
     )
     quantidades = {col.item_id: 10 * (idx + 1) for idx, col in enumerate(colunas)}
     linhas = (
@@ -103,7 +102,10 @@ class TestExportacaoPDF:
             linhas=(),
             totais=TotaisDoRelatorio(por_item={}, total_pecas=0, total_valor=Decimal("0.00")),
             resumo=ResumoDoRelatorio(
-                total_pecas=0, total_valor=Decimal("0.00"), quantidade_lancamentos=0, media_diaria_pecas=0
+                total_pecas=0,
+                total_valor=Decimal("0.00"),
+                quantidade_lancamentos=0,
+                media_diaria_pecas=0,
             ),
         )
         pdf = gerar_pdf(relatorio_vazio)

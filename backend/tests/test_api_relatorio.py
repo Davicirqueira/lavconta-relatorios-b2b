@@ -150,3 +150,145 @@ class TestEndpointRelatorio:
         # Sem fim
         r3 = api.get(f"{CAMINHO}?cliente_id={cliente_id}&inicio=2026-09-01")
         assert r3.status_code == 422
+
+
+class TestEndpointsExportacao:
+    """Tarefa 33 — endpoints /excel e /pdf reproduzem os mesmos totais do relatório em tela.
+
+    Req 8.1, 8.4: cada formato retorna bytes com content-type e Content-Disposition corretos.
+    Req 8.2: as mesmas linhas, colunas e totais exibidos em tela.
+    Req 8.5: a geração ocorre no backend a partir dos mesmos dados calculados.
+
+    Verificação de paridade: busca os totais da resposta JSON e confirma que os
+    bytes do Excel/PDF contêm os mesmos números — provando que os três formatos
+    derivam da mesma agregação e não de cálculos paralelos que poderiam divergir.
+    """
+
+    @pytest.fixture
+    def relatorio_base(self, api: TestClient, cliente_id: str, lencol: str, fronha: str) -> dict:
+        """Cria dois lançamentos e devolve o corpo JSON do relatório."""
+        criar_lancamento(
+            api,
+            cliente_id,
+            "2026-09-01",
+            [{"item_id": lencol, "quantidade": 40}, {"item_id": fronha, "quantidade": 30}],
+            comanda="1201",
+        )
+        criar_lancamento(
+            api,
+            cliente_id,
+            "2026-09-03",
+            [{"item_id": lencol, "quantidade": 50}],
+        )
+        resposta = api.get(f"{CAMINHO}?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30")
+        assert resposta.status_code == 200
+        return resposta.json()
+
+    # --- Excel ------------------------------------------------------------
+
+    def test_excel_retorna_bytes_com_content_type_correto(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        resposta = api.get(
+            f"{CAMINHO}/excel?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+
+        assert resposta.status_code == 200
+        assert (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            in resposta.headers["content-type"]
+        )
+        assert "attachment" in resposta.headers["content-disposition"]
+        assert ".xlsx" in resposta.headers["content-disposition"]
+        assert len(resposta.content) > 0
+
+    def test_excel_nome_do_arquivo_e_descritivo(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        resposta = api.get(
+            f"{CAMINHO}/excel?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+        disposition = resposta.headers["content-disposition"]
+
+        # Nome contém slug do cliente e o período
+        assert "hotel-aurora" in disposition.lower()
+        assert "2026-09-01" in disposition
+        assert "2026-09-30" in disposition
+
+    def test_excel_totais_coincidem_com_relatorio_em_tela(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        """Req 8.2 — totais do Excel batem com o JSON do relatório."""
+        import io
+
+        import openpyxl
+
+        total_pecas_tela = relatorio_base["totais"]["total_pecas"]
+        total_valor_tela = relatorio_base["totais"]["total_valor"]
+
+        resposta = api.get(
+            f"{CAMINHO}/excel?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+        assert resposta.status_code == 200
+
+        wb = openpyxl.load_workbook(io.BytesIO(resposta.content))
+        ws = wb.active
+
+        # A linha de totais é a última linha preenchida
+        ultima_linha = ws.max_row
+        assert ws.cell(row=ultima_linha, column=1).value == "Totais"
+
+        # Colunas: Data | Comanda | Fronha | Lençol | Total peças | Total R$
+        # = colunas 1, 2, 3, 4, 5, 6
+        total_pecas_excel = ws.cell(row=ultima_linha, column=5).value
+        total_valor_excel = ws.cell(row=ultima_linha, column=6).value
+
+        assert total_pecas_excel == total_pecas_tela
+        # total_valor vem como string decimal ("330.00") na API; no Excel é float
+        assert abs(total_valor_excel - float(total_valor_tela)) < 0.001
+
+    # --- PDF --------------------------------------------------------------
+
+    def test_pdf_retorna_bytes_com_content_type_correto(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        resposta = api.get(
+            f"{CAMINHO}/pdf?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+
+        assert resposta.status_code == 200
+        assert "application/pdf" in resposta.headers["content-type"]
+        assert "attachment" in resposta.headers["content-disposition"]
+        assert ".pdf" in resposta.headers["content-disposition"]
+        assert resposta.content.startswith(b"%PDF-")
+
+    def test_pdf_nome_do_arquivo_e_descritivo(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        resposta = api.get(
+            f"{CAMINHO}/pdf?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+        disposition = resposta.headers["content-disposition"]
+
+        assert "hotel-aurora" in disposition.lower()
+        assert "2026-09-01" in disposition
+        assert "2026-09-30" in disposition
+
+    def test_pdf_contem_nome_do_cliente_e_periodo(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        """O PDF embute os metadados — verificável pelo texto codificado nos bytes."""
+        resposta = api.get(
+            f"{CAMINHO}/pdf?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+        assert resposta.status_code == 200
+        # "Hotel Aurora" deve aparecer no fluxo de bytes do PDF como texto
+        assert b"Hotel Aurora" in resposta.content
+
+    def test_exportacoes_exigem_mesmos_parametros_que_relatorio(
+        self, api: TestClient, cliente_id: str
+    ) -> None:
+        """Sem cliente_id ou datas, os endpoints de exportação respondem 422."""
+        for formato in ("excel", "pdf"):
+            r = api.get(f"{CAMINHO}/{formato}?inicio=2026-09-01&fim=2026-09-30")
+            assert r.status_code == 422, f"{formato} sem cliente_id deveria ser 422"

@@ -38,6 +38,18 @@ class CabecalhosDeSeguranca(BaseHTTPMiddleware):
         return resposta
 
 
+async def tratar_rate_limit(_: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Limite de requisições excedido.
+
+    Traduz o ``RateLimitExceeded`` do slowapi no envelope padrão de erro da API,
+    em vez de retornar o formato default da biblioteca.
+    """
+    return JSONResponse(
+        status_code=429,
+        content=muitas_requisicoes(str(exc.detail)).como_envelope(),
+    )
+
+
 async def tratar_erro_de_dominio(_: Request, erro: ErroDeDominio) -> JSONResponse:
     """Erro previsto de negócio: devolve código, mensagem e detalhes."""
     return JSONResponse(status_code=erro.status_http, content=erro.como_envelope())
@@ -98,6 +110,11 @@ def criar_app() -> FastAPI:
         version="1.0.0",
     )
 
+    # Limiter registrado no app.state: exigido pelo slowapi para que o decorator
+    # @limiter.limit(...) nos endpoints funcione. Sem isso a primeira requisição
+    # limitada lança AttributeError em produção.
+    aplicacao.state.limiter = limiter
+
     # CORS com origens explícitas, sem coringa (a configuração recusa "*").
     aplicacao.add_middleware(
         CORSMiddleware,
@@ -110,6 +127,7 @@ def criar_app() -> FastAPI:
 
     aplicacao.add_exception_handler(ErroDeDominio, tratar_erro_de_dominio)  # type: ignore[arg-type]
     aplicacao.add_exception_handler(RequestValidationError, tratar_erro_de_validacao)  # type: ignore[arg-type]
+    aplicacao.add_exception_handler(RateLimitExceeded, tratar_rate_limit)  # type: ignore[arg-type]
     aplicacao.add_exception_handler(Exception, tratar_erro_inesperado)
 
     @aplicacao.get(ROTA_PUBLICA_SAUDE, tags=["infraestrutura"])
