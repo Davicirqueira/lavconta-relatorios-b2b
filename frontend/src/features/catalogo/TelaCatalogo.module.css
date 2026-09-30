@@ -1,0 +1,115 @@
+.cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.titulo {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--gelo-800);
+  letter-spacing: -0.02em;
+}
+
+.controles {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.switchInativos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: var(--gelo-600);
+  height: 38px;
+}
+
+.switchInativos input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--azul-600);
+  cursor: pointer;
+}
+
+.tabela {
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+  overflow: hidden;
+}
+
+.tabela table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabela thead {
+  background-color: var(--gelo-100);
+  border-bottom: 1px solid var(--gelo-200);
+}
+
+.linha {
+  border-bottom: 1px solid var(--gelo-200);
+  transition: background-color 120ms;
+}
+
+.linha:last-child {
+  border-bottom: none;
+}
+
+.linha:hover {
+  background-color: var(--azul-50);
+}
+
+.acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.botaoAcao {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: var(--raio-sm);
+  color: var(--gelo-500);
+  cursor: pointer;
+  transition: color var(--dur-rapida), background-color var(--dur-rapida);
+}
+
+.botaoAcao:hover {
+  background-color: var(--gelo-100);
+  color: var(--gelo-700);
+}
+
+.botaoDestrutivo:hover {
+  background-color: var(--erro-suave);
+  color: var(--erro-base);
+}
+
+.erroCarregamento {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background-color: var(--erro-suave);
+  border: 1px solid var(--erro-borda);
+  border-radius: var(--raio-md);
+  color: var(--erro-forte);
+  font-size: 14px;
+}

@@ -312,19 +312,19 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 9 — Telas de gestão
 
-- [ ] 41. Implementar a tela de clientes
+- [x] 41. Implementar a tela de clientes
   - Lista com situação, busca, alternância de inativos; formulário de nome
   - Inativar e reativar; exclusão com diálogo de confirmação e mensagem explicativa
     quando houver histórico
   - Sem campo de endereço (avaliação B7)
   - _Requisitos: 2.1–2.11_
 
-- [ ] 42. Implementar a tela de catálogo
+- [x] 42. Implementar a tela de catálogo
   - Seleção de cliente, lista de itens com situação, alternância de inativos, formulário
   - Sem categoria de item (avaliação B5)
   - _Requisitos: 3.1–3.13_
 
-- [ ] 43. Implementar a tela de preços
+- [x] 43. Implementar a tela de preços
   - Seleção de cliente e mês; lista de itens com preço vigente e `vigencia_origem`
   - Destaque de alerta para itens sem preço
   - Formulário com valor de duas casas e mês de vigência, sugerindo mês seguinte na

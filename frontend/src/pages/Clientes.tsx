@@ -1,4 +1,5 @@
-/** Stub — implementado na Fase 9 (tarefa 41). */
+import { TelaClientes } from "@/features/clientes/TelaClientes";
+
 export function PaginaClientes() {
-  return <h1>Clientes</h1>;
+  return <TelaClientes />;
 }

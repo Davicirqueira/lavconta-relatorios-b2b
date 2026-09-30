@@ -1,4 +1,5 @@
-/** Stub — implementado na Fase 9 (tarefa 43). */
+import { TelaPrecos } from "@/features/precos/TelaPrecos";
+
 export function PaginaPrecos() {
-  return <h1>Preços</h1>;
+  return <TelaPrecos />;
 }
