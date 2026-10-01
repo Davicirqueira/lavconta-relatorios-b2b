@@ -1,0 +1,79 @@
+/* Estrutura comum das páginas: título, filtros e banners de estado. */
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.titulo {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--gelo-800);
+  letter-spacing: -0.02em;
+}
+
+.filtros {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+}
+
+.filtroCliente {
+  min-width: 260px;
+  flex: 1 1 260px;
+  max-width: 360px;
+}
+
+.filtroData {
+  width: 150px;
+}
+
+/* Botão alinhado à base dos campos (que têm rótulo em cima) */
+.filtroAcao {
+  align-self: flex-end;
+}
+
+.bannerErro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background-color: var(--erro-suave);
+  border: 1px solid var(--erro-borda);
+  border-radius: var(--raio-md);
+  color: var(--erro-forte);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.bannerAlerta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background-color: var(--alerta-suave);
+  border: 1px solid var(--alerta-borda);
+  border-radius: var(--raio-md);
+  color: var(--alerta-forte);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.cartao {
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+}

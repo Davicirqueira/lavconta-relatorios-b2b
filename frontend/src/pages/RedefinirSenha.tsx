@@ -6,6 +6,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
+import { mensagemErroRedefinicao } from "@/features/auth/mensagens";
 import { Campo } from "@/components/Campo";
 import { Botao } from "@/components/Botao";
 import styles from "./Login.module.css";
@@ -36,7 +37,8 @@ export function PaginaRedefinirSenha() {
     setCarregando(false);
 
     if (error) {
-      setErroGeral("Não foi possível redefinir a senha. Solicite um novo link.");
+      // a regra de força da senha mora no Supabase; aqui só traduzimos o motivo
+      setErroGeral(mensagemErroRedefinicao(error));
       return;
     }
 

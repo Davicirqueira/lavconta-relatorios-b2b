@@ -26,6 +26,32 @@ if (!API_URL) {
 // Duração em ms antes de sinalizar servidor lento (cold start do Render)
 const LIMITE_LENTA_MS = 3_000;
 
+// ------------------------------------------------------------------ //
+// Sinal global de servidor lento                                      //
+//                                                                     //
+// Contador de requisições em voo há mais de LIMITE_LENTA_MS. Qualquer  //
+// tela que esteja esperando a API alimenta o mesmo sinal, e o Layout   //
+// exibe um único painel — sem cada hook precisar repassar callback.    //
+// ------------------------------------------------------------------ //
+
+let requisicoesLentas = 0;
+const ouvintesLentidao = new Set<() => void>();
+
+function notificarLentidao() {
+  for (const ouvinte of ouvintesLentidao) ouvinte();
+}
+
+/** Assinatura para `useSyncExternalStore`. Devolve a função de cancelamento. */
+export function assinarServidorLento(ouvinte: () => void): () => void {
+  ouvintesLentidao.add(ouvinte);
+  return () => ouvintesLentidao.delete(ouvinte);
+}
+
+/** Há alguma requisição esperando há mais de 3s? */
+export function servidorEstaLento(): boolean {
+  return requisicoesLentas > 0;
+}
+
 /** Erros estruturados retornados pela API. */
 export class ErroDeApi extends Error {
   constructor(
@@ -59,10 +85,23 @@ async function fetchComAuth(
     ...(initFetch.headers ?? {}),
   };
 
-  // Timer de cold start: após LIMITE_LENTA_MS chama o callback
-  let timerLenta: ReturnType<typeof setTimeout> | undefined;
-  if (aoFicarLenta) {
-    timerLenta = setTimeout(aoFicarLenta, LIMITE_LENTA_MS);
+  // Timer de cold start: passados LIMITE_LENTA_MS, marca a requisição como
+  // lenta no sinal global e chama o callback opcional da chamada.
+  let contouComoLenta = false;
+  const timerLenta = setTimeout(() => {
+    contouComoLenta = true;
+    requisicoesLentas += 1;
+    notificarLentidao();
+    aoFicarLenta?.();
+  }, LIMITE_LENTA_MS);
+
+  function encerrarTimer() {
+    clearTimeout(timerLenta);
+    if (contouComoLenta) {
+      contouComoLenta = false;
+      requisicoesLentas -= 1;
+      notificarLentidao();
+    }
   }
 
   try {
@@ -71,7 +110,7 @@ async function fetchComAuth(
       headers: cabecalhos,
     });
 
-    clearTimeout(timerLenta);
+    encerrarTimer();
 
     if (!resposta.ok) {
       await tratarErroHttp(resposta);
@@ -79,7 +118,7 @@ async function fetchComAuth(
 
     return resposta;
   } catch (erro) {
-    clearTimeout(timerLenta);
+    encerrarTimer();
     // Repassa AbortError sem envolver
     if (erro instanceof DOMException && erro.name === "AbortError") {
       throw erro;

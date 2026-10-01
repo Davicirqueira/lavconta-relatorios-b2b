@@ -5,7 +5,7 @@ import { PaginaLogin } from "@/pages/Login";
 import { PaginaEsqueciSenha } from "@/pages/EsqueciSenha";
 import { PaginaRedefinirSenha } from "@/pages/RedefinirSenha";
 import { Layout } from "@/components/Layout";
-import { PaginaLancamentos } from "@/pages/Lancamentos";
+import { PaginaLancamentoForm, PaginaLancamentos } from "@/pages/Lancamentos";
 import { PaginaRelatorio } from "@/pages/Relatorio";
 import { PaginaClientes } from "@/pages/Clientes";
 import { PaginaCatalogo } from "@/pages/Catalogo";
@@ -26,6 +26,8 @@ export function App() {
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/lancamentos" replace />} />
             <Route path="/lancamentos" element={<PaginaLancamentos />} />
+            <Route path="/lancamentos/novo" element={<PaginaLancamentoForm />} />
+            <Route path="/lancamentos/:id/editar" element={<PaginaLancamentoForm />} />
             <Route path="/relatorio" element={<PaginaRelatorio />} />
             <Route path="/clientes" element={<PaginaClientes />} />
             <Route path="/catalogo" element={<PaginaCatalogo />} />

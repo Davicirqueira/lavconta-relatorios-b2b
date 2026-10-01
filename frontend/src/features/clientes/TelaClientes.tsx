@@ -20,7 +20,6 @@ import { EstadoVazio } from "@/components/EstadoVazio";
 import { DialogoConfirmacao } from "@/components/DialogoConfirmacao";
 import { useToast } from "@/components/Toast";
 import { ErroDeApi } from "@/lib/api";
-import { paraExibicao } from "@/lib/datas";
 import type { Cliente } from "@/types/api";
 import {
   useClientes,
@@ -208,7 +207,6 @@ export function TelaClientes() {
               >
                 <Th>Nome</Th>
                 <Th>Situação</Th>
-                <Th>Cadastrado em</Th>
                 <Th align="right">Ações</Th>
               </tr>
             </thead>
@@ -242,11 +240,6 @@ export function TelaClientes() {
                     <Badge tipo={cliente.ativo ? "sucesso" : "neutro"}>
                       {cliente.ativo ? "Ativo" : "Inativo"}
                     </Badge>
-                  </Td>
-                  <Td>
-                    <span style={{ color: "var(--gelo-600)", opacity: cliente.ativo ? 1 : 0.55 }}>
-                      {paraExibicao(cliente.criado_em.slice(0, 10))}
-                    </span>
                   </Td>
                   <Td align="right">
                     <div className={styles.acoes}>

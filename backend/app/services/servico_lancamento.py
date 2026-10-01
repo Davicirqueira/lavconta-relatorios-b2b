@@ -349,6 +349,7 @@ class ServicoLancamento:
         cliente_id: uuid.UUID,
         data: date,
         solicitadas: Sequence[LinhaSolicitada],
+        lancamento_id: uuid.UUID | None = None,
     ) -> CalculoDeLancamento:
         """Calcula totais sem persistir, para a barra de totais da interface.
 
@@ -366,12 +367,29 @@ class ServicoLancamento:
 
         Usa o MESMO ``_resolver_e_calcular`` de criar e editar. É o que garante
         que a prévia e o valor salvo não divirjam.
+
+        MODO EDIÇÃO (``lancamento_id``)
+            Na edição, linhas que já existiam mantêm o valor congelado. Sem
+            saber disso, a prévia resolveria o preço vigente e a barra de
+            totais mostraria um valor diferente do que será salvo — a mesma
+            divergência que o defeito B1 tinha no relatório. Informando o
+            lançamento, a prévia aplica exatamente a regra de ``editar``:
+            congelados por item, descartados se o cliente mudou.
         """
         self._exigir_cliente(cliente_id)
         self._validar_solicitadas(solicitadas)
         self._carregar_itens_do_cliente(cliente_id, solicitadas)
 
-        return self._resolver_e_calcular(cliente_id, data, solicitadas)
+        congelados: dict[uuid.UUID, Decimal] | None = None
+        if lancamento_id is not None:
+            existente = self.obter(lancamento_id)
+            # mesma regra de editar: trocar de cliente invalida o congelado
+            if existente.cliente_id == cliente_id:
+                congelados = {
+                    linha.item_id: linha.valor_unitario_congelado for linha in existente.linhas
+                }
+
+        return self._resolver_e_calcular(cliente_id, data, solicitadas, congelados=congelados)
 
     # ------------------------------------------------------------------
     # Validações

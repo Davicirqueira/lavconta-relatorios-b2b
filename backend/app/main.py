@@ -122,6 +122,10 @@ def criar_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
+        # Em resposta cross-origin (Netlify → Render) o navegador só expõe ao
+        # JavaScript os cabeçalhos "seguros". Sem isto, o frontend não lê o
+        # nome do arquivo exportado (PDF/Excel) que vem no Content-Disposition.
+        expose_headers=["Content-Disposition"],
     )
     aplicacao.add_middleware(CabecalhosDeSeguranca)
 

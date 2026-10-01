@@ -480,3 +480,83 @@ class TestPrevia:
             )
 
         assert excecao.value.codigo == CodigoErro.ITEM_DUPLICADO_NO_LANCAMENTO
+
+
+class TestPreviaEmModoEdicao:
+    """A barra de totais da edição precisa mostrar o que a edição vai salvar.
+
+    Sem ``lancamento_id`` a prévia resolve o preço vigente; na edição, linhas
+    existentes mantêm o congelado. Os testes abaixo fixam as duas metades.
+    """
+
+    def test_previa_de_edicao_e_salvamento_produzem_os_mesmos_totais(
+        self,
+        servico: ServicoLancamento,
+        repositorio: RepositorioLancamentoFalso,
+        repositorio_preco: RepositorioPrecoFalso,
+        cliente_id: uuid.UUID,
+        lencol: uuid.UUID,
+        fronha: uuid.UUID,
+    ) -> None:
+        """O caso real: preço corrigido no mês do pedido, depois o pedido é editado."""
+        lancamento = servico.criar(cliente_id, DATA_PEDIDO, [LinhaSolicitada(lencol, 40)])
+        repositorio_preco.semear(cliente_id, lencol, MES_DO_PEDIDO, "9.99")
+        nova_entrada = [LinhaSolicitada(lencol, 50), LinhaSolicitada(fronha, 10)]
+
+        previa = servico.calcular_previa(
+            cliente_id, DATA_PEDIDO, nova_entrada, lancamento_id=lancamento.id
+        )
+        servico.editar(lancamento.id, DATA_PEDIDO, nova_entrada)
+
+        linhas = linhas_de(repositorio, lancamento.id)
+        assert previa.total_valor == sum((linha.total for linha in linhas.values()), Decimal())
+        for calculada in previa.linhas:
+            assert calculada.valor_unitario == linhas[calculada.item_id].valor_unitario_congelado
+        # 50 × 4,50 congelado + 10 × 3,50 vigente
+        assert previa.total_valor == Decimal("260.00")
+
+    def test_sem_lancamento_id_a_previa_usa_o_preco_vigente(
+        self,
+        servico: ServicoLancamento,
+        repositorio_preco: RepositorioPrecoFalso,
+        cliente_id: uuid.UUID,
+        lencol: uuid.UUID,
+    ) -> None:
+        """Fixa a outra metade: o modo edição é opt-in, a criação não muda."""
+        servico.criar(cliente_id, DATA_PEDIDO, [LinhaSolicitada(lencol, 40)])
+        repositorio_preco.semear(cliente_id, lencol, MES_DO_PEDIDO, "9.99")
+
+        previa = servico.calcular_previa(cliente_id, DATA_PEDIDO, [LinhaSolicitada(lencol, 10)])
+
+        assert previa.linhas[0].valor_unitario == Decimal("9.99")
+
+    def test_trocar_de_cliente_descarta_o_congelado(
+        self,
+        servico: ServicoLancamento,
+        repositorio_cliente: RepositorioClienteFalso,
+        repositorio_item: RepositorioItemFalso,
+        repositorio_preco: RepositorioPrecoFalso,
+        cliente_id: uuid.UUID,
+        lencol: uuid.UUID,
+    ) -> None:
+        """Mesma regra de editar: preço é por cliente, o congelado do outro não vale."""
+        lancamento = servico.criar(cliente_id, DATA_PEDIDO, [LinhaSolicitada(lencol, 40)])
+        outro = repositorio_cliente.semear("Pousada Vista Verde").id
+        toalha = repositorio_item.semear(outro, "Toalha").id
+        repositorio_preco.semear(outro, toalha, date(2026, 6, 1), "6.00")
+
+        previa = servico.calcular_previa(
+            outro, DATA_PEDIDO, [LinhaSolicitada(toalha, 5)], lancamento_id=lancamento.id
+        )
+
+        assert previa.total_valor == Decimal("30.00")
+
+    def test_lancamento_inexistente_e_404(
+        self, servico: ServicoLancamento, cliente_id: uuid.UUID, lencol: uuid.UUID
+    ) -> None:
+        with pytest.raises(ErroDeDominio) as excecao:
+            servico.calcular_previa(
+                cliente_id, DATA_PEDIDO, [LinhaSolicitada(lencol, 1)], lancamento_id=uuid.uuid4()
+            )
+
+        assert excecao.value.codigo == CodigoErro.NAO_ENCONTRADO

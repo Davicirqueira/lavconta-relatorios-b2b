@@ -788,9 +788,46 @@ uma alteração indevida em fatura já enviada não tem como ser atribuída. Can
 natural à v2, junto com múltiplos usuários. Os campos `criado_em` e `atualizado_em` já
 existem em todas as tabelas, então a base para registrar autoria está pronta.
 
-**Sem rate limiting até a tarefa 34.** Enquanto ela não for implementada, os endpoints
-não têm proteção contra abuso. O login não está exposto: ele acontece no Supabase, sob
-o rate limit deles. O que está descoberto são as rotas de dados, que exigem JWT válido.
+**Rate limiting em memória (tarefa 34, implementada).** Escrita de lançamento a
+60/min, prévia a 180/min e exportação a 30/min, por IP. O contador vive na memória da
+instância e zera ao hibernar ou reiniciar — contém abuso acidental, não ataque
+distribuído (ver limitação acima). O login não passa pela nossa API: acontece no
+Supabase, sob o rate limit deles.
+
+**Sem proteção contra senhas vazadas.** O Security Advisor do Supabase acusa
+"Leaked Password Protection Disabled". A verificação contra o HaveIBeenPwned só existe no
+plano Pro (informado no próprio painel, em *Authentication → Sign In / Providers →
+Email*, conferido em 01/10/2026). No plano gratuito o aviso permanece.
+
+O risco é concentrado: o projeto tem **duas contas** com acesso total ao faturamento de
+todos os clientes, e o backend não distingue uma da outra. Se a senha de qualquer uma
+estiver em lista vazada, um ataque de *credential stuffing* entra.
+
+Estado observado em 01/10/2026 e plano:
+
+| Configuração (provedor Email) | Hoje | Planejado |
+|---|---|---|
+| Prevent use of leaked passwords | Desligado | Indisponível no plano gratuito |
+| Minimum password length | 6 | 12 |
+| Password requirements | Nenhum | Maiúsculas, minúsculas, números e símbolos |
+| Secure password change | Desligado | Manter desligado |
+| Require current password when updating | Desligado | Manter desligado |
+
+**Ordem obrigatória:** primeiro trocar as senhas das duas contas por senhas fortes,
+geradas por gerenciador e já dentro da regra nova; só depois endurecer a regra. Segundo
+a documentação do Supabase, quem tem senha fora da regra recebe `WeakPasswordError` ao
+entrar, e a tela de login mostra "E-mail ou senha inválidos" — risco de ficar sem acesso
+com mensagem enganosa. **Não verificado** em teste.
+
+As duas últimas linhas ficam desligadas porque a aplicação só troca senha pelo link de
+recuperação, em que o operador não sabe a senha atual. Não foi verificado se o Supabase
+dispensa essas exigências nesse fluxo; ligar sem testar pode quebrar a recuperação.
+
+A tela de redefinir senha traduz o motivo da recusa (`features/auth/mensagens.ts`) em
+vez de mandar pedir novo link para qualquer falha. Ela não cita números da política: a
+regra mora no painel e mudaria sem mudar o código.
+
+Com o plano Pro, ligar a verificação de senhas vazadas encerra este item.
 
 ---
 

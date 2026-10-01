@@ -129,7 +129,9 @@ def calcular_previa(request: Request, corpo: PreviaEntrada, sessao: SessaoBanco)
     Não falha por item sem preço: devolve `itens_sem_preco` e calcula o total com
     os demais. A recusa dura acontece ao salvar.
     """
-    calculo = _servico(sessao).calcular_previa(corpo.cliente_id, corpo.data, _solicitadas(corpo))
+    calculo = _servico(sessao).calcular_previa(
+        corpo.cliente_id, corpo.data, _solicitadas(corpo), lancamento_id=corpo.lancamento_id
+    )
 
     return PreviaResposta(
         linhas=[

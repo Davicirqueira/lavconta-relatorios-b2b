@@ -17,6 +17,10 @@
   margin: 0 auto;
 }
 
+.avisoServidor {
+  margin-bottom: 24px;
+}
+
 @media (max-width: 768px) {
   .inner {
     padding: 20px 16px;

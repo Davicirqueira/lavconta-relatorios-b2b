@@ -69,7 +69,7 @@ export function Modal({ aberto, titulo, onFechar, children, rodape }: PropsModal
           <button
             className={styles.fechar}
             onClick={onFechar}
-            aria-label="Fechar modal"
+            aria-label="Fechar"
             type="button"
           >
             <X size={18} />

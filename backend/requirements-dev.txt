@@ -8,6 +8,9 @@
 
 pytest==9.1.1
 pytest-asyncio==1.4.0
+# extração de texto do PDF exportado, para conferir conteúdo e totais.
+# Nome exato "pypdf" (projeto py-pdf); conferido no PyPI em 01/10/2026.
+pypdf==6.19.0
 
 # cliente de teste da API (TestClient do FastAPI depende de httpx,
 # já fixado em requirements.txt)

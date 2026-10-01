@@ -86,7 +86,7 @@ export function FormularioCliente({
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           erro={erro}
-          maxLength={200}
+          maxLength={160}
           autoFocus
           required
         />

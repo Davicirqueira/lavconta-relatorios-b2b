@@ -1,0 +1,121 @@
+/*
+ * Estilo compartilhado das tabelas de dados (lançamentos e relatório).
+ * Segue brief-design §5: container com raio-lg, cabeçalho gelo-100 em
+ * maiúsculas 12px, hover em azul-50, números tabulares à direita.
+ */
+
+.container {
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+  overflow: hidden;
+}
+
+/* Rolagem própria para o cabeçalho fixo funcionar dentro do container */
+.rolagem {
+  overflow: auto;
+  max-height: calc(100dvh - 260px);
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.tabela thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--gelo-100);
+  border-bottom: 1px solid var(--gelo-200);
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gelo-600);
+  white-space: nowrap;
+}
+
+.tabela tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gelo-200);
+  color: var(--gelo-700);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.tabela tbody tr {
+  transition: background-color var(--dur-rapida) var(--ease-padrao);
+}
+
+.tabela tbody tr:hover {
+  background-color: var(--azul-50);
+}
+
+.tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Linha de totais: fundo gelo-50, borda superior 2px gelo-300, peso 600 */
+.tabela tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--gelo-50);
+  border-top: 2px solid var(--gelo-300);
+  padding: 12px 16px;
+  font-weight: 600;
+  color: var(--gelo-900);
+  white-space: nowrap;
+}
+
+.direita {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Valores monetários nunca são coloridos (brief-design §6) */
+.valor {
+  color: var(--gelo-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.botaoAcao {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: var(--raio-sm);
+  color: var(--gelo-500);
+  cursor: pointer;
+  transition:
+    color var(--dur-rapida),
+    background-color var(--dur-rapida);
+}
+
+.botaoAcao:hover {
+  background-color: var(--gelo-100);
+  color: var(--azul-700);
+}
+
+.botaoAcaoDestrutivo:hover {
+  background-color: var(--erro-suave);
+  color: var(--erro-base);
+}
+
+.vazio {
+  color: var(--gelo-400);
+}

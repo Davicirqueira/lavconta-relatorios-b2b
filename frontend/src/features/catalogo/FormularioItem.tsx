@@ -81,7 +81,7 @@ export function FormularioItem({
           onChange={(e) => setNome(e.target.value)}
           erro={erro}
           placeholder="Ex.: Lençol, Fronha, Toalha…"
-          maxLength={200}
+          maxLength={120}
           autoFocus
           required
         />

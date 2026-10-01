@@ -174,7 +174,7 @@ export function TelaCatalogo() {
         <EstadoVazio
           icone={<Shirt size={28} />}
           titulo="Nenhum item cadastrado"
-          descricao={`Adicione os tipos de roupa ou artigo que ${clienteSelecionado?.nome ?? "este cliente"} envia para lavagem.`}
+          descricao={`Cadastre os itens que ${clienteSelecionado?.nome ?? "este cliente"} envia, como lençol, fronha e toalha. Cada item é cobrado por peça.`}
           rotuloBotao="Novo item"
           onAcao={abrirNovoItem}
         />

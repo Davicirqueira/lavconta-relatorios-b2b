@@ -20,7 +20,7 @@ import { SkeletonTabela } from "@/components/Skeleton";
 import { EstadoVazio } from "@/components/EstadoVazio";
 import { useToast } from "@/components/Toast";
 import { formatarMoeda } from "@/lib/dinheiro";
-import { hojeSp } from "@/lib/datas";
+import { hojeSp, mesExtenso } from "@/lib/datas";
 import { useClientes } from "@/features/clientes/hooks";
 import type { ItemComPreco } from "@/types/api";
 import { usePrecosDoMes } from "./hooks";
@@ -220,7 +220,7 @@ export function TelaPrecos() {
                           <span className={styles.vigenciaOrigem}>
                             {item.vigencia_origem === mes
                               ? "Definido neste mês"
-                              : `Herdado de ${item.vigencia_origem}`}
+                              : `Vigente desde ${mesExtenso(item.vigencia_origem)}`}
                           </span>
                         ) : (
                           <span className={styles.vigenciaOrigem}>—</span>

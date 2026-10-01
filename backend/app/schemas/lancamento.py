@@ -68,6 +68,13 @@ class PreviaEntrada(BaseModel):
         examples=["2026-09-01"],
     )
     linhas: list[LinhaEntrada] = Field(min_length=1)
+    lancamento_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Informar ao editar um lançamento existente: as linhas que ele já "
+            "tinha mantêm o valor congelado, exatamente como no salvamento."
+        ),
+    )
 
 
 class LinhaResposta(BaseModel):

@@ -337,12 +337,12 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 10 — Lançamento e relatório
 
-- [ ] 44. Implementar a lista de lançamentos
+- [x] 44. Implementar a lista de lançamentos
   - Filtros de cliente e período; tabela com data, cliente, comanda, peças e total
   - Ações de editar e excluir com confirmação identificando cliente e data
   - _Requisitos: 5.21, 5.22, 10.3_
 
-- [ ] 45. Implementar o formulário de lançamento
+- [x] 45. Implementar o formulário de lançamento
   - Cabeçalho com cliente, data (padrão hoje em SP) e comanda marcada como opcional
   - Linhas de item com seleção do catálogo do cliente, quantidade aceitando **digitação
     direta e stepper**, valor unitário e total de linha somente leitura
@@ -351,7 +351,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Mensagens de erro em linha para data duplicada, comanda duplicada e itens sem preço
   - _Requisitos: 5.1–5.16, 6.8, 10.4; avaliação C1_
 
-- [ ] 46. Implementar a barra de totais animada
+- [x] 46. Implementar a barra de totais animada
   - Barra fixa no rodapé com total de peças e total em R$
   - Chamada a `POST /api/lancamentos/previa` com debounce de 400ms e cancelamento de
     requisição em voo
@@ -361,7 +361,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - `itens_sem_preco` marca as linhas envolvidas antes de tentar salvar
   - _Requisitos: 6.8, 10.6; design §11_
 
-- [ ] 47. Implementar a tela de relatório
+- [x] 47. Implementar a tela de relatório
   - Filtros de cliente e período, com padrão do primeiro ao último dia do mês vigente em SP
   - Quatro cartões de resumo: **Total de Peças, Total R$, Nº de Lançamentos e Média
     Diária de Peças** — sem ticket médio e sem variação percentual (avaliação B2)
@@ -371,11 +371,11 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Estado vazio com totais zerados
   - _Requisitos: 7.1–7.14, 10.1, 10.2_
 
-- [ ] 48. Implementar a exportação no frontend
+- [x] 48. Implementar a exportação no frontend
   - Botões de PDF e Excel acionando o download com indicação de progresso
   - _Requisitos: 8.1, 8.4_
 
-- [ ] 49. Padronizar a terminologia da interface
+- [x] 49. Padronizar a terminologia da interface
   - Revisar todos os textos visíveis contra o glossário: **peças, lançamento, preço,
     relação de valores, cliente**
   - Remover vocabulário de "carga", "processamento", "tarifário", "acordo" e "contrato"

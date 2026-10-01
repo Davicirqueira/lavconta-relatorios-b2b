@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import { supabase } from "@/lib/supabase";
+import { marcarSaidaVoluntaria } from "@/features/auth/saida";
 
 const CHAVE_STORAGE = "lavconta:sidebar-colapsada";
 
@@ -68,6 +69,7 @@ export function Sidebar() {
   }
 
   async function sair() {
+    marcarSaidaVoluntaria();
     await supabase.auth.signOut();
     navigate("/login");
   }

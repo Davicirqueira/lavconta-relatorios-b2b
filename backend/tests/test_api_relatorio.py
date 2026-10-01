@@ -152,6 +152,22 @@ class TestEndpointRelatorio:
         assert r3.status_code == 422
 
 
+class TestCorsDaExportacao:
+    """O frontend roda em outra origem e precisa ler o nome do arquivo."""
+
+    def test_content_disposition_e_exposto_ao_navegador(
+        self, api: TestClient, cliente_id: str
+    ) -> None:
+        resposta = api.get(
+            f"{CAMINHO}/excel?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30",
+            headers={"Origin": "http://localhost:5173"},
+        )
+
+        assert resposta.status_code == 200
+        expostos = resposta.headers.get("access-control-expose-headers", "").lower()
+        assert "content-disposition" in expostos
+
+
 class TestEndpointsExportacao:
     """Tarefa 33 — endpoints /excel e /pdf reproduzem os mesmos totais do relatório em tela.
 
@@ -274,16 +290,48 @@ class TestEndpointsExportacao:
         assert "2026-09-01" in disposition
         assert "2026-09-30" in disposition
 
+    @staticmethod
+    def _texto_do_pdf(conteudo: bytes) -> str:
+        """Extrai o texto das páginas do PDF.
+
+        Procurar a string nos bytes brutos não funciona: com a fonte Inter
+        embutida, o texto vai como glifos codificados. Uma versão anterior
+        deste teste fazia isso e falhava sempre.
+        """
+        import io
+
+        from pypdf import PdfReader
+
+        leitor = PdfReader(io.BytesIO(conteudo))
+        return "\n".join(pagina.extract_text() or "" for pagina in leitor.pages)
+
     def test_pdf_contem_nome_do_cliente_e_periodo(
         self, api: TestClient, relatorio_base: dict, cliente_id: str
     ) -> None:
-        """O PDF embute os metadados — verificável pelo texto codificado nos bytes."""
         resposta = api.get(
             f"{CAMINHO}/pdf?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
         )
         assert resposta.status_code == 200
-        # "Hotel Aurora" deve aparecer no fluxo de bytes do PDF como texto
-        assert b"Hotel Aurora" in resposta.content
+
+        texto = self._texto_do_pdf(resposta.content)
+        assert "Hotel Aurora" in texto
+        assert "01/09/2026" in texto
+        assert "30/09/2026" in texto
+
+    def test_pdf_totais_coincidem_com_relatorio_em_tela(
+        self, api: TestClient, relatorio_base: dict, cliente_id: str
+    ) -> None:
+        """Req 8.2 — o documento enviado ao cliente traz os mesmos totais da tela."""
+        resposta = api.get(
+            f"{CAMINHO}/pdf?cliente_id={cliente_id}&inicio=2026-09-01&fim=2026-09-30"
+        )
+        texto = self._texto_do_pdf(resposta.content)
+
+        totais = relatorio_base["totais"]
+        # "330.00" da API → "R$ 330,00" no PDF (formato brasileiro)
+        valor_br = totais["total_valor"].replace(".", ",")
+        assert f"R$ {valor_br}" in texto
+        assert str(totais["total_pecas"]) in texto
 
     def test_exportacoes_exigem_mesmos_parametros_que_relatorio(
         self, api: TestClient, cliente_id: str

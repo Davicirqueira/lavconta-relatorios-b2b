@@ -1,4 +1,10 @@
-/** Stub — implementado na Fase 10 (tarefa 44–46). */
+import { TelaLancamentos } from "@/features/lancamentos/TelaLancamentos";
+import { FormularioLancamento } from "@/features/lancamentos/FormularioLancamento";
+
 export function PaginaLancamentos() {
-  return <h1>Lançamentos</h1>;
+  return <TelaLancamentos />;
+}
+
+export function PaginaLancamentoForm() {
+  return <FormularioLancamento />;
 }
