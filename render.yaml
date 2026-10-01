@@ -1,0 +1,45 @@
+# ==========================================================================
+# Render Blueprint — API do Lavconta (FastAPI)
+#
+# Sem nenhum segredo neste arquivo. As variáveis com "sync: false" são pedidas
+# pelo painel do Render na criação do Blueprint e ficam só lá.
+# Referência: https://render.com/docs/blueprint-spec (conferida em 01/10/2026).
+# ==========================================================================
+services:
+  - type: web
+    name: lavconta-api
+    runtime: python
+    # Explícito de propósito: sem este campo o Render cria o serviço no plano
+    # pago 0.5c-512mb (padrão documentado na blueprint-spec).
+    plan: free
+    # Monorepo: a API vive em backend/. Mudanças fora daqui não disparam build.
+    rootDir: backend
+    # Deploy automático só depois do CI verde no main (lint, testes, auditoria,
+    # gitleaks). Commit com CI vermelho não chega à produção.
+    autoDeployTrigger: checksPass
+    buildCommand: pip install -r requirements.txt
+    # Sem --forwarded-allow-ips: com "*" o uvicorn adota o primeiro IP do
+    # X-Forwarded-For, que o cliente controla, e o rate limit poderia ser
+    # contornado trocando o cabeçalho. Sem a opção, o limite é contado pelo IP
+    # do proxy do Render (compartilhado). Os limites (60/min escrita, 30/min
+    # exportação) folgam para a equipe interna da v1. Ver README, "Rate limit".
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Única rota pública; não devolve dado de negócio.
+    healthCheckPath: /api/saude
+    envVars:
+      # Mesma versão do desenvolvimento local e do CI (3.14).
+      - key: PYTHON_VERSION
+        value: "3.14.7"
+      # Postgres do Supabase via Session pooler (porta 5432), driver psycopg.
+      # SENSÍVEL.
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false
+      - key: SUPABASE_JWT_ISSUER
+        sync: false
+      - key: SUPABASE_JWT_AUDIENCE
+        sync: false
+      # Origem do Netlify, sem coringa (a API recusa "*" na inicialização).
+      - key: CORS_ORIGENS
+        sync: false

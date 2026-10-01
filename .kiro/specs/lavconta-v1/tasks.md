@@ -387,7 +387,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 ## Fase 11 — Deploy e verificação final
 
-- [ ] 50. Versionar a configuração de deploy
+- [x] 50. Versionar a configuração de deploy
   - `render.yaml` para a API e `netlify.toml` para o frontend, sem nenhum segredo
     embutido
   - Documentar no `README` quais variáveis configurar em cada plataforma

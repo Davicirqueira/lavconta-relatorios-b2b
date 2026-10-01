@@ -1,0 +1,42 @@
+# ==========================================================================
+# Netlify — frontend do Lavconta (React + Vite)
+#
+# Sem nenhum segredo neste arquivo. As variáveis VITE_* são definidas no painel
+# do Netlify e entram no bundle no momento do build (são públicas por definição).
+# Referência: https://docs.netlify.com/build/configure-builds/file-based-configuration/
+# (conferida em 01/10/2026).
+# ==========================================================================
+
+[build]
+  # Monorepo: o frontend vive em frontend/. publish é relativo a base.
+  base = "frontend"
+  # npm ci respeita o package-lock.json e falha se houver divergência
+  # (engineering.md §6). O build já inclui a checagem de tipos.
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Mesma versão do CI.
+  NODE_VERSION = "24"
+
+# SPA: o roteamento é do React Router. Sem isto, recarregar /lancamentos
+# (ou abrir o link de /redefinir-senha do e-mail) devolve 404.
+# Arquivos existentes (assets) têm precedência, pois force não está ativo.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Assets do Vite têm hash no nome: podem ficar em cache indefinidamente.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
