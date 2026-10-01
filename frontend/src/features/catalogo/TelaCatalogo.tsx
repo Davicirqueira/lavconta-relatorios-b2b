@@ -1,19 +1,21 @@
 /**
- * TelaCatalogo — gestão do catálogo de itens de um cliente.
+ * TelaCatalogo — catálogo de itens de um cliente, em cartões.
  *
- * O catálogo é sempre contextualizado por cliente: o operador seleciona
- * o cliente no topo e a lista atualiza. Sem categoria de item (avaliação B5).
- *
- * Exclusão só se o item nunca foi usado em lançamento; com histórico a API
- * devolve EXCLUSAO_COM_HISTORICO e sugerimos inativação.
+ * O catálogo é sempre por cliente: o operador escolhe o cliente e vê os itens.
+ * Sem categoria de item (avaliação B5). Exclusão só de item nunca usado; com
+ * histórico, a API devolve EXCLUSAO_COM_HISTORICO e sugerimos inativação.
  */
 
 import { useState } from "react";
-import { Plus, Pencil, PowerOff, Power, Trash2, Shirt } from "lucide-react";
+import { Pencil, Plus, Power, PowerOff, Shirt, Trash2 } from "lucide-react";
 import { Botao } from "@/components/Botao";
 import { Selecao } from "@/components/Selecao";
-import { Badge } from "@/components/Badge";
-import { SkeletonTabela } from "@/components/Skeleton";
+import {
+  CartaoAdicionar,
+  CartaoGestao,
+  GradeCartoes,
+} from "@/components/CartaoGestao";
+import { Skeleton } from "@/components/Skeleton";
 import { EstadoVazio } from "@/components/EstadoVazio";
 import { DialogoConfirmacao } from "@/components/DialogoConfirmacao";
 import { useToast } from "@/components/Toast";
@@ -21,15 +23,15 @@ import { ErroDeApi } from "@/lib/api";
 import { useClientes } from "@/features/clientes/hooks";
 import type { Item } from "@/types/api";
 import {
-  useItens,
   useCriarItem,
-  useRenomearItem,
-  useInativarItem,
-  useReativarItem,
   useExcluirItem,
+  useInativarItem,
+  useItens,
+  useReativarItem,
+  useRenomearItem,
 } from "./hooks";
 import { FormularioItem } from "./FormularioItem";
-import styles from "./TelaCatalogo.module.css";
+import pagina from "@/components/Pagina.module.css";
 
 export function TelaCatalogo() {
   const [clienteId, setClienteId] = useState("");
@@ -39,14 +41,7 @@ export function TelaCatalogo() {
   const [confirmarExclusao, setConfirmarExclusao] = useState<Item | undefined>();
 
   const { data: clientes } = useClientes(false);
-
-  const {
-    data: itens,
-    isLoading,
-    isError,
-    refetch,
-  } = useItens(clienteId, incluirInativos);
-
+  const { data: itens, isLoading, isError, refetch } = useItens(clienteId, incluirInativos);
   const criarItem = useCriarItem(clienteId);
   const renomearItem = useRenomearItem();
   const inativarItem = useInativarItem();
@@ -55,6 +50,7 @@ export function TelaCatalogo() {
   const { mostrar } = useToast();
 
   const clienteSelecionado = (clientes ?? []).find((c) => c.id === clienteId);
+  const lista = itens ?? [];
 
   async function handleSalvar(nome: string) {
     if (itemEditando) {
@@ -91,10 +87,7 @@ export function TelaCatalogo() {
       mostrar(`"${confirmarExclusao.nome}" foi excluído.`, "sucesso");
     } catch (err) {
       if (err instanceof ErroDeApi && err.codigo === "EXCLUSAO_COM_HISTORICO") {
-        mostrar(
-          "Este item tem histórico de lançamentos. Use a opção Inativar.",
-          "alerta",
-        );
+        mostrar("Este item tem histórico de lançamentos. Use a opção Inativar.", "alerta");
       } else {
         mostrar("Não foi possível excluir o item.", "erro");
       }
@@ -110,154 +103,122 @@ export function TelaCatalogo() {
 
   return (
     <div>
-      {/* Cabeçalho */}
-      <div className={styles.cabecalho}>
-        <h1 className={styles.titulo}>Catálogo de itens</h1>
-        <div className={styles.controles}>
-          <Selecao
-            rotulo="Cliente"
-            value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
-            placeholder="Selecione um cliente…"
-            style={{ minWidth: 260 }}
-          >
-            {(clientes ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Selecao>
-
-          {clienteId && (
-            <>
-              <label className={styles.switchInativos}>
-                <input
-                  type="checkbox"
-                  checked={incluirInativos}
-                  onChange={(e) => setIncluirInativos(e.target.checked)}
-                />
-                Mostrar inativos
-              </label>
-              <Botao variante="primario" onClick={abrirNovoItem}>
-                <Plus size={16} aria-hidden="true" />
-                Novo item
-              </Botao>
-            </>
-          )}
+      <div className={pagina.cabecalho}>
+        <div>
+          <h1 className={pagina.titulo}>Catálogo de itens</h1>
+          <p className={pagina.subtitulo}>Tipos de peça que cada cliente envia, cobrados por peça.</p>
         </div>
+        {clienteId && (
+          <div className={pagina.controles}>
+            <label className={pagina.alternancia}>
+              <input
+                type="checkbox"
+                checked={incluirInativos}
+                onChange={(e) => setIncluirInativos(e.target.checked)}
+              />
+              Mostrar inativos
+            </label>
+            <Botao onClick={abrirNovoItem}>
+              <Plus size={16} aria-hidden="true" />
+              Novo item
+            </Botao>
+          </div>
+        )}
       </div>
 
-      {/* Sem cliente selecionado */}
+      <div className={pagina.filtros}>
+        <Selecao
+          rotulo="Cliente"
+          className={pagina.filtroCliente}
+          value={clienteId}
+          onChange={(e) => setClienteId(e.target.value)}
+          placeholder="Selecione um cliente…"
+        >
+          {(clientes ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+        </Selecao>
+      </div>
+
       {!clienteId && (
         <EstadoVazio
           icone={<Shirt size={28} />}
           titulo="Selecione um cliente"
-          descricao="O catálogo de itens é específico por cliente. Selecione um cliente para ver ou gerenciar os itens."
+          descricao="O catálogo é específico de cada cliente. Escolha um cliente para ver e gerenciar os itens."
         />
       )}
 
-      {/* Carregando */}
-      {clienteId && isLoading && <SkeletonTabela linhas={5} />}
+      {clienteId && isLoading && (
+        <GradeCartoes rotulo="Carregando itens">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} role="listitem">
+              <Skeleton variante="bloco" />
+            </div>
+          ))}
+        </GradeCartoes>
+      )}
 
-      {/* Erro */}
       {clienteId && isError && (
-        <div className={styles.erroCarregamento}>
-          Não foi possível carregar os itens.{" "}
+        <div className={pagina.bannerErro} role="alert">
+          Não foi possível carregar os itens.
           <Botao variante="fantasma" tamanho="sm" onClick={() => refetch()}>
             Tentar novamente
           </Botao>
         </div>
       )}
 
-      {/* Sem itens */}
-      {clienteId && !isLoading && !isError && (itens ?? []).length === 0 && (
+      {clienteId && !isLoading && !isError && lista.length === 0 && (
         <EstadoVazio
           icone={<Shirt size={28} />}
           titulo="Nenhum item cadastrado"
-          descricao={`Cadastre os itens que ${clienteSelecionado?.nome ?? "este cliente"} envia, como lençol, fronha e toalha. Cada item é cobrado por peça.`}
+          descricao={`Cadastre os itens que ${clienteSelecionado?.nome ?? "este cliente"} envia, como lençol, fronha e toalha.`}
           rotuloBotao="Novo item"
           onAcao={abrirNovoItem}
         />
       )}
 
-      {/* Tabela */}
-      {clienteId && !isLoading && !isError && (itens ?? []).length > 0 && (
-        <div className={styles.tabela}>
-          <table aria-label={`Itens do catálogo de ${clienteSelecionado?.nome ?? ""}`}>
-            <thead>
-              <tr>
-                <Th>Nome</Th>
-                <Th>Situação</Th>
-                <Th align="right">Ações</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {(itens ?? []).map((item) => (
-                <tr key={item.id} className={styles.linha}>
-                  <Td>
-                    <span
-                      style={{
-                        fontWeight: 500,
-                        color: "var(--gelo-800)",
-                        opacity: item.ativo ? 1 : 0.55,
-                      }}
-                    >
-                      {item.nome}
-                    </span>
-                  </Td>
-                  <Td>
-                    <Badge tipo={item.ativo ? "sucesso" : "neutro"}>
-                      {item.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </Td>
-                  <Td align="right">
-                    <div className={styles.acoes}>
-                      <button
-                        className={styles.botaoAcao}
-                        onClick={() => { setItemEditando(item); setFormularioAberto(true); }}
-                        title="Renomear"
-                        aria-label={`Renomear ${item.nome}`}
-                        type="button"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      {item.ativo ? (
-                        <button
-                          className={styles.botaoAcao}
-                          onClick={() => handleInativar(item)}
-                          title="Inativar"
-                          aria-label={`Inativar ${item.nome}`}
-                          type="button"
-                        >
-                          <PowerOff size={15} />
-                        </button>
-                      ) : (
-                        <button
-                          className={styles.botaoAcao}
-                          onClick={() => handleReativar(item)}
-                          title="Reativar"
-                          aria-label={`Reativar ${item.nome}`}
-                          type="button"
-                        >
-                          <Power size={15} />
-                        </button>
-                      )}
-                      <button
-                        className={`${styles.botaoAcao} ${styles.botaoDestrutivo}`}
-                        onClick={() => setConfirmarExclusao(item)}
-                        title="Excluir"
-                        aria-label={`Excluir ${item.nome}`}
-                        type="button"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {clienteId && !isLoading && !isError && lista.length > 0 && (
+        <GradeCartoes rotulo={`Itens de ${clienteSelecionado?.nome ?? "cliente"}`}>
+          {lista.map((item, indice) => (
+            <CartaoGestao
+              key={item.id}
+              indice={indice}
+              titulo={item.nome}
+              ativo={item.ativo}
+              marca={<Shirt size={20} />}
+              acoes={[
+                {
+                  rotulo: "Renomear",
+                  icone: <Pencil size={14} aria-hidden="true" />,
+                  aoClicar: () => {
+                    setItemEditando(item);
+                    setFormularioAberto(true);
+                  },
+                },
+                item.ativo
+                  ? {
+                      rotulo: "Inativar",
+                      icone: <PowerOff size={14} aria-hidden="true" />,
+                      aoClicar: () => handleInativar(item),
+                    }
+                  : {
+                      rotulo: "Reativar",
+                      icone: <Power size={14} aria-hidden="true" />,
+                      aoClicar: () => handleReativar(item),
+                    },
+                {
+                  rotulo: "Excluir",
+                  icone: <Trash2 size={14} aria-hidden="true" />,
+                  aoClicar: () => setConfirmarExclusao(item),
+                  destrutiva: true,
+                },
+              ]}
+            />
+          ))}
+          <CartaoAdicionar rotulo="Novo item" aoClicar={abrirNovoItem} />
+        </GradeCartoes>
       )}
 
       <FormularioItem
@@ -270,8 +231,7 @@ export function TelaCatalogo() {
       <DialogoConfirmacao
         aberto={!!confirmarExclusao}
         titulo="Excluir item"
-        descricao={`Tem certeza que deseja excluir "${confirmarExclusao?.nome}"?`}
-        rotuloBotaoConfirmar="Excluir"
+        descricao={`Tem certeza? Excluir "${confirmarExclusao?.nome}"? Itens já usados em lançamentos não podem ser excluídos; nesse caso, use Inativar.`}
         carregando={excluirItem.isPending}
         onConfirmar={handleExcluir}
         onCancelar={() => setConfirmarExclusao(undefined)}
@@ -279,53 +239,3 @@ export function TelaCatalogo() {
     </div>
   );
 }
-
-// Auxiliares de célula
-function Th({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <th
-      scope="col"
-      style={{
-        padding: "12px 16px",
-        textAlign: align ?? "left",
-        fontSize: 12,
-        fontWeight: 500,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-        color: "var(--gelo-600)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <td
-      style={{
-        padding: "12px 16px",
-        textAlign: align ?? "left",
-        color: "var(--gelo-700)",
-        verticalAlign: "middle",
-      }}
-    >
-      {children}
-    </td>
-  );
-}
-
-import React from "react";

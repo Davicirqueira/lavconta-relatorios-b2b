@@ -25,6 +25,7 @@ import { useClientes } from "@/features/clientes/hooks";
 import type { ItemComPreco } from "@/types/api";
 import { usePrecosDoMes } from "./hooks";
 import { FormularioPreco } from "./FormularioPreco";
+import pagina from "@/components/Pagina.module.css";
 import styles from "./TelaPrecos.module.css";
 
 /** Gera lista de meses para o seletor: 6 meses passados + corrente + 3 futuros. */
@@ -84,36 +85,41 @@ export function TelaPrecos() {
 
   return (
     <div>
-      {/* Cabeçalho */}
-      <div className={styles.cabecalho}>
-        <h1 className={styles.titulo}>Preços</h1>
-        <div className={styles.filtros}>
-          <Selecao
-            rotulo="Cliente"
-            value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
-            placeholder="Selecione um cliente…"
-            style={{ minWidth: 240 }}
-          >
-            {(clientes ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Selecao>
-          <Selecao
-            rotulo="Mês"
-            value={mes}
-            onChange={(e) => setMes(e.target.value)}
-            style={{ minWidth: 180 }}
-          >
-            {opcoesMes.map(({ valor, rotulo }) => (
-              <option key={valor} value={valor}>
-                {rotulo}
-              </option>
-            ))}
-          </Selecao>
+      <div className={pagina.cabecalho}>
+        <div>
+          <h1 className={pagina.titulo}>Preços</h1>
+          <p className={pagina.subtitulo}>
+            Preço por peça de cada item, com vigência do dia 1 ao fim do mês.
+          </p>
         </div>
+      </div>
+
+      <div className={pagina.filtros}>
+        <Selecao
+          rotulo="Cliente"
+          className={pagina.filtroCliente}
+          value={clienteId}
+          onChange={(e) => setClienteId(e.target.value)}
+          placeholder="Selecione um cliente…"
+        >
+          {(clientes ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+        </Selecao>
+        <Selecao
+          rotulo="Mês"
+          className={styles.filtroMes}
+          value={mes}
+          onChange={(e) => setMes(e.target.value)}
+        >
+          {opcoesMes.map(({ valor, rotulo }) => (
+            <option key={valor} value={valor}>
+              {rotulo}
+            </option>
+          ))}
+        </Selecao>
       </div>
 
       {/* Sem cliente selecionado */}

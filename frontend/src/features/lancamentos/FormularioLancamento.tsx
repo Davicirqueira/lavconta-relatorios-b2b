@@ -1,42 +1,50 @@
 /**
- * FormularioLancamento — novo e edição de lançamento (tarefa 45).
+ * FormularioLancamento — novo e edição de lançamento (tarefa 45, revisada).
+ *
+ * TODOS OS ITENS DO CATÁLOGO À VISTA
+ *   Em vez de escolher item linha a linha, o formulário lista o catálogo do
+ *   cliente e o operador só informa as quantidades — digitando ou pelo
+ *   stepper (avaliação C1). Item sem quantidade não entra no pedido. Como cada
+ *   item aparece uma única vez, item repetido é impossível por construção.
  *
  * O QUE O FORMULÁRIO NÃO FAZ
- *   Não calcula preço nem total. Valor unitário, total da linha e os totais
- *   da barra vêm da prévia do servidor; no salvamento, o servidor congela o
- *   valor de novo e é a fonte final. O navegador nunca envia valor.
+ *   Não calcula preço nem total. O preço por peça exibido vem da API:
+ *     - item no pedido → valor da prévia (respeita o congelado na edição);
+ *     - item fora do pedido → preço vigente no mês da data (tela de preços).
+ *   Totais vêm da prévia; no salvamento o servidor congela de novo e é a
+ *   fonte final. O navegador nunca envia valor.
  *
- * ESCOPO (avaliação v1)
- *   Sem campo de notas/observações (B3). Comanda existe sempre, marcada como
- *   opcional. Quantidade aceita digitação direta e stepper (C1).
+ * ESCOPO: sem notas/observações (avaliação B3); comanda sempre presente e
+ * opcional.
  */
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { AlertTriangle, ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Minus, Plus, Shirt } from "lucide-react";
 import { Botao } from "@/components/Botao";
 import { Campo } from "@/components/Campo";
+import { CampoBusca } from "@/components/CampoBusca";
 import { CampoData } from "@/components/CampoData";
 import { Selecao } from "@/components/Selecao";
 import { SkeletonTabela } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 import { useClientes } from "@/features/clientes/hooks";
 import { useItens } from "@/features/catalogo/hooks";
-import { diasNoMes, hojeSp } from "@/lib/datas";
+import { usePrecosDoMes } from "@/features/precos/hooks";
+import { diasNoMes, hojeSp, mesExtenso } from "@/lib/datas";
 import { formatarMoeda } from "@/lib/dinheiro";
 import type { LancamentoEntrada, LinhaPrevia } from "@/types/api";
 import { useCriarLancamento, useEditarLancamento, useLancamento } from "./hooks";
 import {
   interpretarErroDeSalvamento,
-  MENSAGEM_PROBLEMA,
+  linhasDoPedido,
   normalizarQuantidade,
-  novaLinha,
   passoQuantidade,
-  prepararLinhas,
-  type LinhaFormulario,
+  type Quantidades,
 } from "./logica";
 import { usePrevia } from "./usePrevia";
 import { BarraTotais } from "./BarraTotais";
+import pagina from "@/components/Pagina.module.css";
 import styles from "./FormularioLancamento.module.css";
 
 interface ErrosCampo {
@@ -52,31 +60,39 @@ function periodoDoMes(iso: string): { inicio: string; fim: string } {
   return { inicio: `${ano}-${mm}-01`, fim: `${ano}-${mm}-${diasNoMes(ano, mes)}` };
 }
 
+/** A partir de quantos itens vale oferecer o filtro por nome. */
+const MINIMO_PARA_FILTRO = 7;
+
 export function FormularioLancamento() {
   const { id: lancamentoId } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { mostrar } = useToast();
   const editando = !!lancamentoId;
+  const hoje = hojeSp();
 
   const [clienteId, setClienteId] = useState(params.get("cliente") ?? "");
-  const [data, setData] = useState(hojeSp());
+  const [data, setData] = useState(hoje);
   const [comanda, setComanda] = useState("");
-  const [linhas, setLinhas] = useState<LinhaFormulario[]>(() => [novaLinha()]);
+  const [quantidades, setQuantidades] = useState<Quantidades>({});
   const [incluirInativos, setIncluirInativos] = useState(false);
+  const [filtro, setFiltro] = useState("");
   const [erros, setErros] = useState<ErrosCampo>({});
   const [itensMarcados, setItensMarcados] = useState<string[]>([]);
-  const [tentouSalvar, setTentouSalvar] = useState(false);
+  // itens que o lançamento já tinha: aparecem mesmo se inativos (Req 3.9)
+  const [itensDoLancamento, setItensDoLancamento] = useState<Set<string>>(new Set());
 
   const existente = useLancamento(lancamentoId);
   const { data: clientes } = useClientes(true);
-  // Catálogo completo (com inativos): a alternância só filtra a seleção.
-  // Assim uma linha antiga com item inativo continua editável (Req 3.9).
+  // Catálogo completo (com inativos): a alternância só filtra o que é exibido
   const catalogo = useItens(clienteId, true);
+  // Preço vigente no mês da data; com data incompleta, usa o mês corrente
+  const mesReferencia = (data || hoje).slice(0, 7);
+  const precosDoMes = usePrecosDoMes(clienteId, mesReferencia, true);
   const criar = useCriarLancamento();
   const editar = useEditarLancamento();
 
-  // Carrega o lançamento existente uma única vez, ao chegar do servidor.
+  // Carrega o lançamento existente uma única vez, ao chegar do servidor
   const carregado = useRef(false);
   useEffect(() => {
     if (!existente.data || carregado.current) return;
@@ -85,19 +101,14 @@ export function FormularioLancamento() {
     setClienteId(l.cliente_id);
     setData(l.data);
     setComanda(l.comanda ?? "");
-    setLinhas([
-      ...l.linhas.map((linha) => novaLinha(linha.item_id, String(linha.quantidade))),
-      novaLinha(),
-    ]);
+    setQuantidades(Object.fromEntries(l.linhas.map((li) => [li.item_id, String(li.quantidade)])));
+    setItensDoLancamento(new Set(l.linhas.map((li) => li.item_id)));
   }, [existente.data]);
 
-  const preparadas = useMemo(() => prepararLinhas(linhas), [linhas]);
-  const previa = usePrevia({
-    clienteId,
-    data,
-    linhas: preparadas.linhas,
-    lancamentoId,
-  });
+  const itens = useMemo(() => catalogo.data ?? [], [catalogo.data]);
+  const ordemCatalogo = useMemo(() => itens.map((i) => i.id), [itens]);
+  const linhas = useMemo(() => linhasDoPedido(quantidades, ordemCatalogo), [quantidades, ordemCatalogo]);
+  const previa = usePrevia({ clienteId, data, linhas, lancamentoId });
 
   const linhaPreviaPorItem = useMemo(() => {
     const mapa = new Map<string, LinhaPrevia>();
@@ -105,60 +116,54 @@ export function FormularioLancamento() {
     return mapa;
   }, [previa.resultado]);
 
-  // Itens sem preço: avisados pela prévia (antes de salvar) ou pelo salvamento
-  const semPreco = useMemo(
+  const precoDoMesPorItem = useMemo(
+    () => new Map((precosDoMes.data?.itens ?? []).map((p) => [p.item_id, p])),
+    [precosDoMes.data],
+  );
+
+  // Sem preço: avisado pela prévia (antes de salvar) ou pela recusa do salvamento
+  const semPrecoNoPedido = useMemo(
     () => new Set([...(previa.resultado?.itens_sem_preco ?? []), ...itensMarcados]),
     [previa.resultado, itensMarcados],
   );
 
-  const itens = catalogo.data ?? [];
-  const clientesSelecionaveis = (clientes ?? []).filter(
-    (c) => c.ativo || c.id === clienteId,
-  );
+  const termo = filtro.trim().toLowerCase();
+  const itensExibidos = itens.filter((item) => {
+    const relevante =
+      item.ativo || incluirInativos || itensDoLancamento.has(item.id) || !!quantidades[item.id];
+    return relevante && (!termo || item.nome.toLowerCase().includes(termo));
+  });
 
-  // --- edição das linhas -------------------------------------------------
+  const clientesSelecionaveis = (clientes ?? []).filter((c) => c.ativo || c.id === clienteId);
 
-  function atualizarLinha(chave: string, mudanca: Partial<LinhaFormulario>) {
-    setLinhas((atual) => {
-      const novas = atual.map((l) => (l.chave === chave ? { ...l, ...mudanca } : l));
-      // sempre uma linha em branco no fim: o próximo item já tem onde entrar
-      const ultima = novas[novas.length - 1];
-      if (ultima && (ultima.item_id || ultima.quantidade)) novas.push(novaLinha());
-      return novas;
-    });
+  // --- edição --------------------------------------------------------------
+
+  function mudarQuantidade(itemId: string, valor: string) {
+    setQuantidades((atual) => ({ ...atual, [itemId]: valor }));
     setItensMarcados([]);
-  }
-
-  function removerLinha(chave: string) {
-    setLinhas((atual) => {
-      const restantes = atual.filter((l) => l.chave !== chave);
-      return restantes.length > 0 ? restantes : [novaLinha()];
-    });
+    setErros((e) => ({ ...e, geral: undefined }));
   }
 
   function mudarCliente(novo: string) {
-    // itens pertencem ao cliente: trocar de cliente invalida as linhas
+    // itens pertencem ao cliente: trocar de cliente zera o pedido
     setClienteId(novo);
-    setLinhas([novaLinha()]);
+    setQuantidades({});
+    setItensDoLancamento(new Set());
     setItensMarcados([]);
+    setFiltro("");
     setErros({});
   }
 
-  // --- salvamento --------------------------------------------------------
+  // --- salvamento ----------------------------------------------------------
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
-    setTentouSalvar(true);
     setErros({});
 
     const novosErros: ErrosCampo = {};
     if (!clienteId) novosErros.geral = "Selecione o cliente.";
-    if (!data) novosErros.data = "Informe uma data válida no formato dd/mm/aaaa.";
-    if (preparadas.problemas.size > 0) {
-      novosErros.geral = "Revise as linhas destacadas antes de salvar.";
-    } else if (preparadas.linhas.length === 0) {
-      novosErros.geral = "Informe ao menos um item com quantidade.";
-    }
+    else if (linhas.length === 0) novosErros.geral = "Informe a quantidade de ao menos um item.";
+    if (!data) novosErros.data = "Informe uma data válida.";
     if (Object.keys(novosErros).length > 0) {
       setErros(novosErros);
       return;
@@ -168,7 +173,7 @@ export function FormularioLancamento() {
       cliente_id: clienteId,
       data,
       comanda: comanda.trim() || null,
-      linhas: preparadas.linhas,
+      linhas,
     };
 
     try {
@@ -183,11 +188,7 @@ export function FormularioLancamento() {
       navigate(`/lancamentos?cliente=${clienteId}&inicio=${inicio}&fim=${fim}`);
     } catch (erro) {
       const interpretado = interpretarErroDeSalvamento(erro, itens);
-      setErros({
-        data: interpretado.data,
-        comanda: interpretado.comanda,
-        geral: interpretado.geral,
-      });
+      setErros({ data: interpretado.data, comanda: interpretado.comanda, geral: interpretado.geral });
       setItensMarcados(interpretado.itensMarcados);
     }
   }
@@ -195,7 +196,7 @@ export function FormularioLancamento() {
   const salvando = criar.isPending || editar.isPending;
   const urlVoltar = clienteId ? `/lancamentos?cliente=${clienteId}` : "/lancamentos";
 
-  // --- estados de carregamento da edição ---------------------------------
+  // --- carregamento da edição ----------------------------------------------
 
   if (editando && existente.isLoading) {
     return <SkeletonTabela linhas={6} />;
@@ -218,10 +219,17 @@ export function FormularioLancamento() {
 
   return (
     <form className={styles.pagina} onSubmit={salvar} noValidate>
-      <Link to={urlVoltar} className={styles.voltar}>
-        <ArrowLeft size={14} aria-hidden="true" /> Voltar para lançamentos
-      </Link>
-      <h1 style={{ fontSize: 28 }}>{editando ? "Editar lançamento" : "Novo lançamento"}</h1>
+      <div className={`${pagina.cabecalho} ${styles.cabecalho}`}>
+        <div>
+          <Link to={urlVoltar} className={styles.voltar}>
+            <ArrowLeft size={14} aria-hidden="true" /> Voltar para lançamentos
+          </Link>
+          <h1 className={pagina.titulo} style={{ marginTop: 12 }}>
+            {editando ? "Editar lançamento" : "Novo lançamento"}
+          </h1>
+          <p className={pagina.subtitulo}>Registre as peças do pedido do dia.</p>
+        </div>
+      </div>
 
       {erros.geral && (
         <div className={styles.bannerErro} role="alert">
@@ -250,12 +258,14 @@ export function FormularioLancamento() {
             ))}
           </Selecao>
           <CampoData
-            rotulo="Data"
+            rotulo="Data do pedido"
             id="lancamento-data"
             valor={data}
+            // data futura é recusada pelo servidor; aqui só não é oferecida
+            max={hoje}
             aoMudar={(iso) => {
               setData(iso);
-              setErros((e) => ({ ...e, data: undefined }));
+              setErros((er) => ({ ...er, data: undefined }));
             }}
             erro={erros.data}
           />
@@ -267,6 +277,7 @@ export function FormularioLancamento() {
               setComanda(e.target.value);
               setErros((er) => ({ ...er, comanda: undefined }));
             }}
+            placeholder="Ex.: 1206"
             maxLength={50}
             erro={erros.comanda}
             autoComplete="off"
@@ -277,21 +288,39 @@ export function FormularioLancamento() {
       {/* Itens */}
       <section className={styles.cartao} aria-labelledby="titulo-itens">
         <div className={styles.itensTopo}>
-          <h2 id="titulo-itens" className={styles.cartaoTitulo} style={{ marginBottom: 0 }}>
-            Itens
+          <h2 id="titulo-itens" className={styles.cartaoTitulo}>
+            Peças do pedido
+            {data && (
+              <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
+                {" "}
+                · preços de {mesExtenso(mesReferencia)}
+              </span>
+            )}
           </h2>
-          <label className={styles.alternanciaInativos}>
-            <input
-              type="checkbox"
-              checked={incluirInativos}
-              onChange={(e) => setIncluirInativos(e.target.checked)}
-            />
-            Incluir itens inativos
-          </label>
+          {clienteId && itens.length > 0 && (
+            <div className={styles.itensControles}>
+              {itens.length >= MINIMO_PARA_FILTRO && (
+                <CampoBusca
+                  valor={filtro}
+                  aoMudar={setFiltro}
+                  rotulo="Filtrar itens"
+                  placeholder="Filtrar itens…"
+                />
+              )}
+              <label className={styles.alternanciaInativos}>
+                <input
+                  type="checkbox"
+                  checked={incluirInativos}
+                  onChange={(e) => setIncluirInativos(e.target.checked)}
+                />
+                Incluir itens inativos
+              </label>
+            </div>
+          )}
         </div>
 
         {!clienteId ? (
-          <p className={styles.dicaItens}>Selecione o cliente para escolher os itens do catálogo.</p>
+          <p className={styles.dicaItens}>Selecione o cliente para listar os itens do catálogo.</p>
         ) : catalogo.isLoading ? (
           <SkeletonTabela linhas={3} />
         ) : itens.length === 0 ? (
@@ -299,158 +328,109 @@ export function FormularioLancamento() {
             Este cliente ainda não tem itens no catálogo. Cadastre os itens em{" "}
             <Link to="/catalogo">Catálogo</Link>.
           </p>
+        ) : itensExibidos.length === 0 ? (
+          <p className={styles.dicaItens}>Nenhum item corresponde ao filtro.</p>
         ) : (
-          <>
-            <div className={`${styles.grade} ${styles.cabecalhoGrade}`} aria-hidden="true">
-              <span>Item</span>
-              <span className={styles.direita}>Quantidade</span>
-              <span className={styles.direita}>Valor unitário</span>
-              <span className={styles.direita}>Total</span>
-              <span />
-            </div>
-
-            {linhas.map((linha, indice) => {
-              const numero = indice + 1;
-              const problema = preparadas.problemas.get(linha.chave);
-              // incompletude só aparece depois da tentativa de salvar;
-              // item repetido aparece na hora
-              const mostrarProblema =
-                problema && (problema === "duplicado" || tentouSalvar);
-              const itemSemPreco = !!linha.item_id && semPreco.has(linha.item_id);
-              const linhaPrevia = !problema ? linhaPreviaPorItem.get(linha.item_id) : undefined;
-              const opcoes = itens.filter(
-                (i) => i.ativo || incluirInativos || i.id === linha.item_id,
-              );
-              const vazia = !linha.item_id && !linha.quantidade;
+          <ul className={styles.listaItens}>
+            {itensExibidos.map((item) => {
+              const quantidade = quantidades[item.id] ?? "";
+              const noPedido = Number(quantidade) > 0;
+              const linhaPrevia = noPedido ? linhaPreviaPorItem.get(item.id) : undefined;
+              const precoMes = precoDoMesPorItem.get(item.id);
+              const semPreco = noPedido
+                ? semPrecoNoPedido.has(item.id)
+                : !!precoMes?.sem_preco;
+              const valorUnitario = linhaPrevia?.valor_unitario ?? precoMes?.valor_unitario ?? null;
 
               return (
-                <div
-                  key={linha.chave}
-                  className={`${styles.grade} ${styles.linha} ${itemSemPreco ? styles.linhaAlerta : ""}`}
+                <li
+                  key={item.id}
+                  className={[
+                    styles.item,
+                    noPedido ? styles.itemNoPedido : "",
+                    noPedido && semPreco ? styles.itemAlerta : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
-                  <select
-                    className={`${styles.campo} ${mostrarProblema && problema === "sem_item" ? styles.campoErro : ""}`}
-                    aria-label={`Item da linha ${numero}`}
-                    value={linha.item_id}
-                    onChange={(e) => atualizarLinha(linha.chave, { item_id: e.target.value })}
+                  <span className={styles.itemMarca} aria-hidden="true">
+                    <Shirt size={18} />
+                  </span>
+
+                  <div className={styles.itemInfo}>
+                    <span className={styles.itemNome}>
+                      {item.nome}
+                      {!item.ativo && " (inativo)"}
+                    </span>
+                    {semPreco ? (
+                      <span className={styles.semPreco}>
+                        <AlertTriangle size={12} aria-hidden="true" /> Sem preço neste mês
+                      </span>
+                    ) : (
+                      <span className={styles.itemPreco}>
+                        {valorUnitario ? `${formatarMoeda(valorUnitario)} / peça` : "—"}
+                      </span>
+                    )}
+                  </div>
+
+                  <span
+                    className={[styles.itemTotal, linhaPrevia ? "" : styles.itemTotalVazio]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-label={`Total de ${item.nome}`}
                   >
-                    <option value="">Selecione o item…</option>
-                    {opcoes.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.ativo ? i.nome : `${i.nome} (inativo)`}
-                      </option>
-                    ))}
-                  </select>
+                    {linhaPrevia ? formatarMoeda(linhaPrevia.total) : "—"}
+                  </span>
 
                   <div className={styles.stepper}>
                     <button
                       type="button"
                       className={styles.passo}
-                      aria-label={`Diminuir quantidade da linha ${numero}`}
-                      onClick={() =>
-                        atualizarLinha(linha.chave, {
-                          quantidade: passoQuantidade(linha.quantidade, -1),
-                        })
-                      }
+                      aria-label={`Diminuir ${item.nome}`}
+                      onClick={() => mudarQuantidade(item.id, passoQuantidade(quantidade, -1))}
+                      disabled={!noPedido}
                       tabIndex={-1}
                     >
                       <Minus size={14} />
                     </button>
                     <input
-                      className={`${styles.campo} ${mostrarProblema && problema === "sem_quantidade" ? styles.campoErro : ""}`}
-                      aria-label={`Quantidade da linha ${numero}`}
+                      className={styles.quantidade}
+                      aria-label={`Quantidade de ${item.nome}`}
                       inputMode="numeric"
                       autoComplete="off"
-                      value={linha.quantidade}
-                      onChange={(e) =>
-                        atualizarLinha(linha.chave, {
-                          quantidade: normalizarQuantidade(e.target.value),
-                        })
-                      }
+                      placeholder="0"
+                      value={quantidade}
+                      onChange={(e) => mudarQuantidade(item.id, normalizarQuantidade(e.target.value))}
                       onKeyDown={(e) => {
                         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
                           e.preventDefault();
-                          atualizarLinha(linha.chave, {
-                            quantidade: passoQuantidade(
-                              linha.quantidade,
-                              e.key === "ArrowUp" ? 1 : -1,
-                            ),
-                          });
+                          mudarQuantidade(
+                            item.id,
+                            passoQuantidade(quantidade, e.key === "ArrowUp" ? 1 : -1),
+                          );
                         }
                       }}
                     />
                     <button
                       type="button"
                       className={styles.passo}
-                      aria-label={`Aumentar quantidade da linha ${numero}`}
-                      onClick={() =>
-                        atualizarLinha(linha.chave, {
-                          quantidade: passoQuantidade(linha.quantidade, 1),
-                        })
-                      }
+                      aria-label={`Aumentar ${item.nome}`}
+                      onClick={() => mudarQuantidade(item.id, passoQuantidade(quantidade, 1))}
                       tabIndex={-1}
                     >
                       <Plus size={14} />
                     </button>
                   </div>
 
-                  <span className={styles.somenteLeitura} aria-label={`Valor unitário da linha ${numero}`}>
-                    {itemSemPreco ? (
-                      <span className={styles.semPreco}>
-                        <AlertTriangle size={12} aria-hidden="true" /> Sem preço
-                      </span>
-                    ) : linhaPrevia ? (
-                      formatarMoeda(linhaPrevia.valor_unitario)
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-
-                  <span className={styles.totalLinha} aria-label={`Total da linha ${numero}`}>
-                    {linhaPrevia && !itemSemPreco ? formatarMoeda(linhaPrevia.total) : "—"}
-                  </span>
-
-                  {vazia ? (
-                    <span />
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.remover}
-                      onClick={() => removerLinha(linha.chave)}
-                      aria-label={`Remover a linha ${numero}`}
-                      title="Remover"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-
-                  {mostrarProblema && (
-                    <span className={styles.mensagemLinha} role="alert">
-                      {MENSAGEM_PROBLEMA[problema]}
+                  {noPedido && semPreco && (
+                    <span className={styles.mensagemItem}>
+                      Sem preço para o mês desta data. Defina o preço em Preços antes de salvar.
                     </span>
                   )}
-                  {itemSemPreco && !mostrarProblema && (
-                    <span
-                      className={`${styles.mensagemLinha} ${styles.mensagemLinhaAlerta}`}
-                    >
-                      Sem preço cadastrado para o mês desta data. Defina o preço em Preços antes
-                      de salvar.
-                    </span>
-                  )}
-                </div>
+                </li>
               );
             })}
-
-            <Botao
-              type="button"
-              variante="fantasma"
-              tamanho="sm"
-              className={styles.adicionar}
-              onClick={() => setLinhas((atual) => [...atual, novaLinha()])}
-            >
-              <Plus size={14} aria-hidden="true" /> Adicionar item
-            </Botao>
-          </>
+          </ul>
         )}
       </section>
 
@@ -467,7 +447,7 @@ export function FormularioLancamento() {
               Cancelar
             </Botao>
             <Botao type="submit" carregando={salvando}>
-              Salvar
+              Salvar lançamento
             </Botao>
           </>
         }

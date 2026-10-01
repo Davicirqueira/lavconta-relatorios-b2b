@@ -1,0 +1,189 @@
+.grade {
+  display: grid;
+  /* 280px: rodapé mínimo de 238px comporta Renomear + Inativar + ícone de excluir (~227px) */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* todas as linhas com a mesma altura: o cartão de adicionar sozinho numa
+     linha fica do tamanho dos demais */
+  grid-auto-rows: 1fr;
+  gap: 16px;
+}
+
+.cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+  transition:
+    box-shadow var(--dur-padrao) var(--ease-padrao),
+    border-color var(--dur-padrao) var(--ease-padrao),
+    transform var(--dur-padrao) var(--ease-padrao);
+  animation: entrar 240ms var(--ease-padrao) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+.cartao:hover {
+  box-shadow: var(--sombra-2);
+  border-color: var(--azul-200);
+  transform: translateY(-1px);
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.marca {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--raio-md);
+  background: var(--azul-50);
+  color: var(--azul-700);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.titulo {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gelo-800);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 12px;
+  margin-top: auto;
+  border-top: 1px solid var(--gelo-200);
+}
+
+.acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  border-radius: var(--raio-sm);
+  color: var(--gelo-600);
+  font-family: var(--fonte);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-rapida),
+    color var(--dur-rapida);
+}
+
+.acao:focus-visible {
+  outline: 2px solid var(--azul-400);
+  outline-offset: 1px;
+}
+
+.acao:hover {
+  background: var(--azul-50);
+  color: var(--azul-700);
+}
+
+/* Destrutiva: só ícone, ancorada à direita. Em repouso não chama atenção;
+   ganha cor de erro no hover. O rótulo segue no aria-label e no title. */
+.acaoDestrutiva {
+  margin-left: auto;
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
+.acaoDestrutiva:hover {
+  background: var(--erro-suave);
+  color: var(--erro-forte);
+}
+
+/* O item da grade estica até a altura da linha; o botão acompanha. */
+.itemAdicionar {
+  display: flex;
+}
+
+/* Cartão de "adicionar": contorno tracejado, convida à ação sem competir */
+.adicionar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 148px;
+  padding: 20px;
+  border: 1.5px dashed var(--gelo-300);
+  border-radius: var(--raio-lg);
+  background: transparent;
+  color: var(--gelo-600);
+  font-family: var(--fonte);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-padrao) var(--ease-padrao),
+    background-color var(--dur-padrao) var(--ease-padrao),
+    color var(--dur-padrao) var(--ease-padrao);
+}
+
+.adicionar:hover {
+  border-color: var(--azul-400);
+  background: var(--azul-50);
+  color: var(--azul-700);
+}
+
+.adicionarIcone {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--raio-full);
+  background: var(--gelo-100);
+  transition: background-color var(--dur-padrao);
+}
+
+.adicionar:hover .adicionarIcone {
+  background: var(--azul-100);
+}
+
+/* inativo: neutro, não erro */
+.inativo .marca {
+  background: var(--gelo-100);
+  color: var(--gelo-600);
+}
+
+.inativo .titulo {
+  color: var(--gelo-600);
+}

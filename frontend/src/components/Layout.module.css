@@ -12,17 +12,23 @@
 }
 
 .inner {
-  padding: 32px;
+  /* lido pelo cabeçalho de página para a faixa subir até o topo */
+  --respiro-pagina: 32px;
+  padding: var(--respiro-pagina);
   max-width: 1280px;
   margin: 0 auto;
 }
 
+/* posicionado para ficar acima da faixa branca do cabeçalho de página */
 .avisoServidor {
+  position: relative;
+  z-index: 1;
   margin-bottom: 24px;
 }
 
 @media (max-width: 768px) {
   .inner {
-    padding: 20px 16px;
+    --respiro-pagina: 20px;
+    padding: var(--respiro-pagina) 16px;
   }
 }

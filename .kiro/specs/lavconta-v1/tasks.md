@@ -269,7 +269,8 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
 
 - [x] 35. Configurar o projeto Vite com os tokens visuais
   - Projeto React + TypeScript; dependências com versão exata e lockfile versionado
-  - CSS global com os tokens de `id-visual.md`: cores, tipografia, sombras tingidas,
+  - CSS global com os tokens (hoje em `frontend/src/styles/tokens.css`; o antigo
+    `id-visual.md` foi removido em 01/10/2026): cores, tipografia, sombras tingidas,
     raios, durações e curvas, e o bloco `prefers-reduced-motion`
   - Fonte Inter variável auto-hospedada (`@fontsource-variable/inter`, versão exata),
     aplicada em toda a aplicação; classe utilitária `.num` de numerais tabulares

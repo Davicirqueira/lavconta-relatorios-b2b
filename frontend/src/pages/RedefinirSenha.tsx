@@ -7,6 +7,8 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
 import { mensagemErroRedefinicao } from "@/features/auth/mensagens";
+import { Lock } from "lucide-react";
+import { MolduraAutenticacao } from "@/features/auth/MolduraAutenticacao";
 import { Campo } from "@/components/Campo";
 import { Botao } from "@/components/Botao";
 import styles from "./Login.module.css";
@@ -46,48 +48,39 @@ export function PaginaRedefinirSenha() {
   }
 
   return (
-    <div className={styles.fundo}>
-      <div className={styles.cartao}>
-        <div className={styles.marca}>
-          <h1 className={styles.logotipo}>Nova senha</h1>
+    <MolduraAutenticacao titulo="Nova senha" descricao="Escolha uma senha forte e única.">
+      {erroGeral && (
+        <div className={styles.erro} role="alert">
+          {erroGeral}
         </div>
+      )}
 
-        {erroGeral && (
-          <div className={styles.erro} role="alert">
-            {erroGeral}
-          </div>
-        )}
-
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <Campo
-            rotulo="Nova senha"
-            type="password"
-            autoComplete="new-password"
-            value={novaSenha}
-            onChange={(e) => setNovaSenha(e.target.value)}
-            dica="Mínimo de 8 caracteres."
-            required
-          />
-          <Campo
-            rotulo="Confirmar nova senha"
-            type="password"
-            autoComplete="new-password"
-            value={confirmar}
-            onChange={(e) => setConfirmar(e.target.value)}
-            required
-          />
-          <div className={styles.acoes}>
-            <Botao
-              type="submit"
-              variante="primario"
-              tamanho="lg"
-              carregando={carregando}
-            >
-              Salvar
-            </Botao>
-          </div>
-        </form>
-      </div>
-    </div>
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <Campo
+          rotulo="Nova senha"
+          type="password"
+          autoComplete="new-password"
+          icone={<Lock size={16} />}
+          value={novaSenha}
+          onChange={(e) => setNovaSenha(e.target.value)}
+          dica="Mínimo de 8 caracteres."
+          required
+        />
+        <Campo
+          rotulo="Confirmar nova senha"
+          type="password"
+          autoComplete="new-password"
+          icone={<Lock size={16} />}
+          value={confirmar}
+          onChange={(e) => setConfirmar(e.target.value)}
+          required
+        />
+        <div className={styles.acoes}>
+          <Botao type="submit" variante="primario" tamanho="lg" carregando={carregando}>
+            Salvar
+          </Botao>
+        </div>
+      </form>
+    </MolduraAutenticacao>
   );
 }

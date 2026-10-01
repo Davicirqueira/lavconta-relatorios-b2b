@@ -2,7 +2,7 @@
 
 Utiliza reportlab em formato A4 paisagem com tabelas estruturadas via platypus.
 Consome a mesma estrutura calculada de ``Relatorio`` sem recalcular nenhum total.
-Registra as fontes TTF da família Inter para consistência visual com a interface (id-visual.md).
+Registra as fontes TTF da família Inter para consistência visual com a interface.
 Degrada graciosamente tamanhos de fonte e larguras de coluna quando houver muitos itens no período.
 """
 
@@ -20,7 +20,7 @@ from reportlab.platypus import Image, SimpleDocTemplate, Spacer, Table, TableSty
 from app.core.datas import hoje_sp
 from app.dominio import Relatorio
 
-# Cores da identidade visual (id-visual.md)
+# Cores da identidade visual (mesmos valores de frontend/src/styles/tokens.css)
 COR_AZUL_900 = colors.HexColor("#0B2F58")
 COR_AZUL_700 = colors.HexColor("#1C5CA6")
 COR_AZUL_50 = colors.HexColor("#F1F7FF")

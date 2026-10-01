@@ -23,7 +23,7 @@
   color: var(--erro-forte);
 }
 
-/* Alerta — texto escuro (ver nota de contraste em id-visual.md §4) */
+/* Alerta — texto escuro: branco sobre amarelo não atinge contraste AA */
 .alerta {
   background-color: var(--alerta-suave);
   border-color: var(--alerta-borda);

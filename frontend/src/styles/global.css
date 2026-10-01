@@ -24,7 +24,7 @@ html {
 }
 
 body {
-  /* Família única em toda a aplicação (id-visual.md §2) */
+  /* Família única em toda a aplicação (brief-design §3) */
   font-family: var(--fonte);
   font-size: 14px;
   line-height: 1.5;

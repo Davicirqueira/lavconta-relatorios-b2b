@@ -16,55 +16,31 @@ const {
   interpretarErroDeSalvamento,
   normalizarQuantidade,
   passoQuantidade,
-  prepararLinhas,
+  linhasDoPedido,
 } = await import("./logica");
 const { valorNoInstante } = await import("@/lib/animacao");
 
-const linha = (chave: string, item_id: string, quantidade: string) => ({
-  chave,
-  item_id,
-  quantidade,
-});
+describe("linhasDoPedido", () => {
+  const ordem = ["lencol", "fronha", "toalha"];
 
-describe("prepararLinhas", () => {
-  it("envia só linhas completas, com quantidade numérica", () => {
-    const { linhas, problemas } = prepararLinhas([
-      linha("a", "lencol", "40"),
-      linha("b", "fronha", "30"),
-    ]);
-    expect(linhas).toEqual([
+  it("envia só itens com quantidade positiva, como número", () => {
+    expect(linhasDoPedido({ lencol: "40", fronha: "", toalha: "20" }, ordem)).toEqual([
       { item_id: "lencol", quantidade: 40 },
-      { item_id: "fronha", quantidade: 30 },
+      { item_id: "toalha", quantidade: 20 },
     ]);
-    expect(problemas.size).toBe(0);
   });
 
-  it("ignora a linha totalmente vazia sem acusar problema", () => {
-    const { linhas, problemas } = prepararLinhas([linha("a", "lencol", "40"), linha("b", "", "")]);
-    expect(linhas).toHaveLength(1);
-    expect(problemas.size).toBe(0);
+  it("zero e vazio ficam fora do pedido", () => {
+    expect(linhasDoPedido({ lencol: "0", fronha: "" }, ordem)).toEqual([]);
   });
 
-  it("acusa linha incompleta sem enviá-la", () => {
-    const { linhas, problemas } = prepararLinhas([
-      linha("a", "lencol", ""),
-      linha("b", "", "5"),
-      linha("c", "fronha", "0"),
-    ]);
-    expect(linhas).toEqual([]);
-    expect(problemas.get("a")).toBe("sem_quantidade");
-    expect(problemas.get("b")).toBe("sem_item");
-    expect(problemas.get("c")).toBe("sem_quantidade");
+  it("segue a ordem do catálogo, não a ordem de preenchimento", () => {
+    const quantidades = { toalha: "5", lencol: "3" };
+    expect(linhasDoPedido(quantidades, ordem).map((l) => l.item_id)).toEqual(["lencol", "toalha"]);
   });
 
-  it("acusa o item repetido na segunda ocorrência e envia só a primeira", () => {
-    const { linhas, problemas } = prepararLinhas([
-      linha("a", "lencol", "40"),
-      linha("b", "lencol", "10"),
-    ]);
-    expect(linhas).toEqual([{ item_id: "lencol", quantidade: 40 }]);
-    expect(problemas.get("a")).toBeUndefined();
-    expect(problemas.get("b")).toBe("duplicado");
+  it("ignora quantidade de item que não está no catálogo exibido", () => {
+    expect(linhasDoPedido({ fantasma: "9" }, ordem)).toEqual([]);
   });
 });
 
@@ -77,11 +53,15 @@ describe("quantidade", () => {
     expect(normalizarQuantidade("")).toBe("");
   });
 
-  it("stepper nunca desce abaixo de 1", () => {
-    expect(passoQuantidade("1", -1)).toBe("1");
-    expect(passoQuantidade("", -1)).toBe("1");
+  it("stepper sobe a partir de vazio", () => {
     expect(passoQuantidade("", 1)).toBe("1");
     expect(passoQuantidade("9", 1)).toBe("10");
+  });
+
+  it("descer de 1 tira o item do pedido em vez de ficar em zero", () => {
+    expect(passoQuantidade("1", -1)).toBe("");
+    expect(passoQuantidade("", -1)).toBe("");
+    expect(passoQuantidade("5", -1)).toBe("4");
   });
 });
 

@@ -1,12 +1,49 @@
 /* Estrutura comum das páginas: título, filtros e banners de estado. */
 
+/*
+ * Topo da página: faixa branca de ponta a ponta da área de conteúdo, com borda
+ * inferior, destacando o título do fundo gelo sem virar um bloco pesado.
+ *
+ * A faixa (::before) e a borda (::after) ficam atrás do conteúdo do cabeçalho.
+ * A faixa sobe até o topo do <main> (anula o padding do Layout via
+ * --respiro-pagina). Para os lados, cada uma se estende com box-shadow de
+ * espalhamento, recortado por clip-path só na horizontal: sombra não gera área
+ * rolável, então o <main> não ganha rolagem lateral.
+ */
 .cabecalho {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding-bottom: 24px;
   margin-bottom: 24px;
   flex-wrap: wrap;
+}
+
+.cabecalho::before,
+.cabecalho::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  clip-path: inset(0 -100vmax);
+}
+
+.cabecalho::before {
+  top: calc(-1 * var(--respiro-pagina, 32px));
+  bottom: 0;
+  background: var(--branco);
+  box-shadow: 0 0 0 100vmax var(--branco);
+}
+
+.cabecalho::after {
+  bottom: 0;
+  height: 1px;
+  background: var(--gelo-200);
+  box-shadow: 0 0 0 100vmax var(--gelo-200);
 }
 
 .titulo {
@@ -14,6 +51,37 @@
   font-weight: 600;
   color: var(--gelo-800);
   letter-spacing: -0.02em;
+}
+
+.subtitulo {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--gelo-600);
+}
+
+/* controles alinhados à direita do título (busca, alternâncias, ação primária) */
+.controles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alternancia {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--gelo-600);
+  cursor: pointer;
+  user-select: none;
+}
+
+.alternancia input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--azul-600);
+  cursor: pointer;
 }
 
 .filtros {

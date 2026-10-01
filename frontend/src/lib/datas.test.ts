@@ -10,7 +10,6 @@ import {
   paraExibicao,
   paraIso,
   hojeSp,
-  interpretarDataBr,
   diasDoPeriodo,
   diasNoMes,
 } from "./datas";
@@ -75,31 +74,6 @@ describe("hojeSp", () => {
     const ano = Number(hojeSp().split("-")[0]);
     expect(ano).toBeGreaterThanOrEqual(2026);
     expect(ano).toBeLessThanOrEqual(2030);
-  });
-});
-
-describe("interpretarDataBr", () => {
-  it("aceita data válida e devolve ISO sem mudar o dia", () => {
-    expect(interpretarDataBr("31/08/2026")).toBe("2026-08-31");
-    expect(interpretarDataBr("01/09/2026")).toBe("2026-09-01");
-  });
-
-  it("recusa dia inexistente no mês", () => {
-    expect(interpretarDataBr("31/09/2026")).toBeNull();
-    expect(interpretarDataBr("31/02/2026")).toBeNull();
-  });
-
-  it("29/02 só em ano bissexto", () => {
-    expect(interpretarDataBr("29/02/2028")).toBe("2028-02-29");
-    expect(interpretarDataBr("29/02/2026")).toBeNull();
-  });
-
-  it("recusa texto incompleto ou fora do formato", () => {
-    expect(interpretarDataBr("01/09/26")).toBeNull();
-    expect(interpretarDataBr("1/9/2026")).toBeNull();
-    expect(interpretarDataBr("")).toBeNull();
-    expect(interpretarDataBr("00/09/2026")).toBeNull();
-    expect(interpretarDataBr("10/13/2026")).toBeNull();
   });
 });
 

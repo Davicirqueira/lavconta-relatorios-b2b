@@ -10,84 +10,42 @@ import { ErroDeApi } from "@/lib/api";
 import type { Item, LinhaEntrada } from "@/types/api";
 
 // ------------------------------------------------------------------ //
-// Linhas do formulário                                                //
+// Quantidades do pedido                                               //
+//                                                                     //
+// O formulário lista todos os itens do catálogo; cada um tem uma       //
+// quantidade em texto (aceita digitação livre). Item vazio ou zero não //
+// entra no pedido. Como cada item aparece uma vez, repetição de item   //
+// é impossível por construção.                                         //
 // ------------------------------------------------------------------ //
 
-/** Linha como o operador a edita. Quantidade é texto para aceitar digitação livre. */
-export interface LinhaFormulario {
-  chave: string;
-  item_id: string;
-  quantidade: string;
-}
-
-let contadorChave = 0;
-export function novaLinha(item_id = "", quantidade = ""): LinhaFormulario {
-  contadorChave += 1;
-  return { chave: `linha-${contadorChave}`, item_id, quantidade };
-}
+/** item_id → quantidade digitada (texto; "" = fora do pedido). */
+export type Quantidades = Record<string, string>;
 
 /** Mantém só dígitos, até 6 — quantidade é inteiro positivo de peças. */
 export function normalizarQuantidade(texto: string): string {
   return texto.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 6);
 }
 
-/** Stepper: soma `delta` respeitando o mínimo de 1 peça. */
+/**
+ * Stepper: soma `delta` à quantidade.
+ *
+ * Descer de 1 tira o item do pedido (""), em vez de travar em 1: com todos os
+ * itens listados, o "−" é também a forma de desfazer.
+ */
 export function passoQuantidade(atual: string, delta: number): string {
-  const numero = Number(atual) || 0;
-  return String(Math.max(1, Math.min(999_999, numero + delta)));
-}
-
-export type ProblemaLinha = "sem_item" | "sem_quantidade" | "duplicado";
-
-export interface LinhasPreparadas {
-  /** Linhas completas, prontas para a API. */
-  linhas: LinhaEntrada[];
-  /** Problema por chave de linha, para marcar em linha. */
-  problemas: Map<string, ProblemaLinha>;
+  const numero = Math.min(999_999, (Number(atual) || 0) + delta);
+  return numero > 0 ? String(numero) : "";
 }
 
 /**
- * Separa o que pode ir para a API do que ainda está incompleto.
- *
- * Linha totalmente vazia é ignorada (é a linha em branco esperando o próximo
- * item). Linha com item repetido é problema: a API recusaria o pedido inteiro
- * com ITEM_DUPLICADO_NO_LANCAMENTO.
+ * Linhas do pedido para a API: só itens com quantidade positiva, na ordem em
+ * que o catálogo os exibe.
  */
-export function prepararLinhas(linhas: LinhaFormulario[]): LinhasPreparadas {
-  const problemas = new Map<string, ProblemaLinha>();
-  const vistos = new Map<string, string>(); // item_id → chave da primeira ocorrência
-  const prontas: LinhaEntrada[] = [];
-
-  for (const linha of linhas) {
-    const quantidade = Number(linha.quantidade);
-    const temItem = !!linha.item_id;
-    const temQuantidade = linha.quantidade !== "" && quantidade > 0;
-
-    if (!temItem && !temQuantidade) continue;
-    if (!temItem) {
-      problemas.set(linha.chave, "sem_item");
-      continue;
-    }
-    if (!temQuantidade) {
-      problemas.set(linha.chave, "sem_quantidade");
-      continue;
-    }
-    if (vistos.has(linha.item_id)) {
-      problemas.set(linha.chave, "duplicado");
-      continue;
-    }
-    vistos.set(linha.item_id, linha.chave);
-    prontas.push({ item_id: linha.item_id, quantidade });
-  }
-
-  return { linhas: prontas, problemas };
+export function linhasDoPedido(quantidades: Quantidades, ordem: string[]): LinhaEntrada[] {
+  return ordem
+    .map((item_id) => ({ item_id, quantidade: Number(quantidades[item_id] ?? "") }))
+    .filter((linha) => Number.isInteger(linha.quantidade) && linha.quantidade > 0);
 }
-
-export const MENSAGEM_PROBLEMA: Record<ProblemaLinha, string> = {
-  sem_item: "Selecione o item.",
-  sem_quantidade: "Informe a quantidade.",
-  duplicado: "Este item já está no lançamento.",
-};
 
 // ------------------------------------------------------------------ //
 // Agendamento da prévia: debounce + cancelamento                      //

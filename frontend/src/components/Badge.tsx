@@ -2,8 +2,8 @@
  * Badge — indicador de estado: fundo "suave", borda "borda", texto "forte".
  * Verde = sucesso, vermelho = erro, amarelo = alerta, azul = info/neutro.
  *
- * ATENÇÃO (acessibilidade de cor): amarelo usa texto gelo-900 (nunca branco)
- * conforme id-visual.md §4.
+ * ATENÇÃO (acessibilidade de cor): amarelo usa texto escuro, nunca branco —
+ * branco sobre a base de alerta fica abaixo do contraste AA.
  */
 
 import type { ReactNode } from "react";

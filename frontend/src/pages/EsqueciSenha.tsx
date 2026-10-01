@@ -7,10 +7,12 @@
 
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
+import { Mail } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Campo } from "@/components/Campo";
 import { Botao } from "@/components/Botao";
-import styles from "./Login.module.css"; // reutiliza os estilos da tela de login
+import { MolduraAutenticacao } from "@/features/auth/MolduraAutenticacao";
+import styles from "./Login.module.css";
 
 export function PaginaEsqueciSenha() {
   const [email, setEmail] = useState("");
@@ -29,45 +31,38 @@ export function PaginaEsqueciSenha() {
   }
 
   return (
-    <div className={styles.fundo}>
-      <div className={styles.cartao}>
-        <div className={styles.marca}>
-          <h1 className={styles.logotipo}>Recuperar acesso</h1>
+    <MolduraAutenticacao
+      titulo="Recuperar acesso"
+      descricao="Informe seu e-mail e enviaremos um link para redefinir a senha."
+    >
+      {enviado ? (
+        <div className={styles.sucesso} role="status">
+          Se esse e-mail estiver cadastrado, você receberá um link em instantes. Verifique também a
+          caixa de spam.
         </div>
-
-        {enviado ? (
-          <div className={styles.sucesso} role="status">
-            Se esse e-mail estiver cadastrado, você receberá um link em instantes.
-            Verifique também a caixa de spam.
+      ) : (
+        <form className={styles.form} onSubmit={handleSubmit} noValidate>
+          <Campo
+            rotulo="E-mail"
+            type="email"
+            autoComplete="email"
+            icone={<Mail size={16} />}
+            placeholder="nome@lavandix.com.br"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <div className={styles.acoes}>
+            <Botao type="submit" variante="primario" tamanho="lg" carregando={carregando}>
+              Enviar link
+            </Botao>
           </div>
-        ) : (
-          <form className={styles.form} onSubmit={handleSubmit} noValidate>
-            <Campo
-              rotulo="E-mail"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              dica="Enviaremos um link para redefinir sua senha."
-              required
-            />
-            <div className={styles.acoes}>
-              <Botao
-                type="submit"
-                variante="primario"
-                tamanho="lg"
-                carregando={carregando}
-              >
-                Enviar link
-              </Botao>
-            </div>
-          </form>
-        )}
+        </form>
+      )}
 
-        <Link to="/login" className={styles.linkEsqueci} style={{ marginTop: 20 }}>
-          Voltar para o login
-        </Link>
-      </div>
-    </div>
+      <Link to="/login" className={`${styles.linkEsqueci} ${styles.voltar}`}>
+        Voltar para o login
+      </Link>
+    </MolduraAutenticacao>
   );
 }

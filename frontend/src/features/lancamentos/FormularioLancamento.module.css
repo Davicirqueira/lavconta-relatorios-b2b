@@ -1,10 +1,9 @@
-/* Formulário de lançamento — brief-design §5 "Formulário de lançamento" */
+/* Formulário de lançamento — todos os itens do catálogo listados (essência do protótipo) */
 
 .pagina {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  /* espaço para a barra fixa não cobrir a última linha */
   padding-bottom: 8px;
 }
 
@@ -23,6 +22,11 @@
   text-decoration: underline;
 }
 
+/* o espaçamento entre blocos já vem do gap de .pagina */
+.pagina > .cabecalho {
+  margin-bottom: 0;
+}
+
 .cartao {
   background: var(--branco);
   border: 1px solid var(--gelo-200);
@@ -32,15 +36,17 @@
 }
 
 .cartaoTitulo {
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--gelo-800);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gelo-600);
   margin-bottom: 16px;
 }
 
 .cabecalhoPedido {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr);
+  grid-template-columns: minmax(220px, 2fr) minmax(170px, 1fr) minmax(150px, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -51,11 +57,6 @@
   }
 }
 
-.opcional {
-  font-weight: 400;
-  color: var(--gelo-500);
-}
-
 /* --- Itens --- */
 
 .itensTopo {
@@ -63,7 +64,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.itensTopo .cartaoTitulo {
+  margin-bottom: 0;
+}
+
+.itensControles {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .alternanciaInativos {
@@ -82,198 +95,198 @@
   accent-color: var(--azul-600);
 }
 
-.grade {
-  display: grid;
-  grid-template-columns: minmax(200px, 1fr) 168px 130px 130px 40px;
-  gap: 12px;
-  align-items: center;
-}
-
-.cabecalhoGrade {
-  padding: 0 12px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--gelo-600);
-}
-
-.direita {
-  text-align: right;
-}
-
-.linha {
-  padding: 8px 12px;
-  border-radius: var(--raio-md);
-  transition: background-color var(--dur-rapida) var(--ease-padrao);
-  animation: entrarLinha 240ms var(--ease-padrao) both;
-}
-
-.linha:hover,
-.linha:focus-within {
-  background-color: var(--azul-50);
-}
-
-.linhaAlerta,
-.linhaAlerta:hover,
-.linhaAlerta:focus-within {
-  background-color: var(--alerta-suave);
-}
-
-@keyframes entrarLinha {
-  from {
-    opacity: 0;
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 120px;
-  }
-}
-
-.campo {
-  height: 38px;
-  width: 100%;
-  padding: 0 12px;
-  border: 1px solid var(--gelo-300);
-  border-radius: var(--raio-md);
-  background-color: var(--branco);
-  color: var(--gelo-900);
-  font-family: var(--fonte);
-  font-size: 14px;
-  transition:
-    border-color 160ms var(--ease-padrao),
-    box-shadow 160ms var(--ease-padrao);
-}
-
-.campo:focus {
-  outline: none;
-  border-color: var(--azul-600);
-  box-shadow: var(--sombra-foco);
-}
-
-.campoErro {
-  border-color: var(--erro-base);
-}
-
-select.campo {
-  appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2356626F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  cursor: pointer;
-}
-
-/* Stepper: [-] [campo] [+] — digitação direta continua livre (avaliação C1) */
-.stepper {
+.listaItens {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 40px minmax(160px, 1fr) 120px auto;
   align-items: center;
-  gap: 4px;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--gelo-50);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-md);
+  transition:
+    background-color var(--dur-rapida) var(--ease-padrao),
+    border-color var(--dur-rapida) var(--ease-padrao),
+    box-shadow var(--dur-rapida) var(--ease-padrao);
 }
 
-.stepper .campo {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.item:hover {
+  border-color: var(--gelo-300);
 }
 
-.passo {
-  flex-shrink: 0;
-  width: 34px;
-  height: 38px;
+/* item no pedido: superfície tingida de azul, como a linha ativa do protótipo */
+.itemNoPedido {
+  background: var(--azul-50);
+  border-color: var(--azul-200);
+}
+
+.itemNoPedido:hover {
+  border-color: var(--azul-300);
+}
+
+.itemAlerta,
+.itemAlerta:hover {
+  background: var(--alerta-suave);
+  border-color: var(--alerta-borda);
+}
+
+.itemMarca {
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--gelo-300);
   border-radius: var(--raio-md);
   background: var(--branco);
-  color: var(--azul-700);
-  cursor: pointer;
-  transition:
-    background-color var(--dur-rapida),
-    transform 100ms;
+  border: 1px solid var(--gelo-200);
+  color: var(--azul-600);
 }
 
-.passo:hover {
-  background: var(--gelo-50);
+.itemInfo {
+  min-width: 0;
 }
 
-.passo:active {
-  transform: scale(0.96);
-}
-
-/* Valor unitário e total: somente leitura, vindos da API */
-.somenteLeitura {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--gelo-600);
-}
-
-.totalLinha {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
+.itemNome {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--gelo-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemPreco {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--gelo-600);
+  font-variant-numeric: tabular-nums;
 }
 
 .semPreco {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  margin-top: 2px;
   font-size: 12px;
   font-weight: 500;
   color: var(--alerta-forte);
 }
 
-.remover {
+.itemTotal {
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gelo-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.itemTotalVazio {
+  color: var(--gelo-400);
+  font-weight: 400;
+}
+
+/* Stepper: [−] [campo] [+] — digitação direta continua livre (avaliação C1) */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quantidade {
+  width: 72px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--gelo-300);
+  border-radius: var(--raio-md);
+  background: var(--branco);
+  color: var(--gelo-900);
+  font-family: var(--fonte);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition:
+    border-color 160ms var(--ease-padrao),
+    box-shadow 160ms var(--ease-padrao);
+}
+
+.quantidade::placeholder {
+  color: var(--gelo-400);
+  font-weight: 400;
+}
+
+.quantidade:focus {
+  outline: none;
+  border-color: var(--azul-600);
+  box-shadow: var(--sombra-foco);
+}
+
+.passo {
+  flex-shrink: 0;
   width: 32px;
   height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  background: none;
-  border-radius: var(--raio-sm);
-  color: var(--gelo-500);
+  border: 1px solid var(--gelo-300);
+  border-radius: var(--raio-full);
+  background: var(--branco);
+  color: var(--gelo-700);
   cursor: pointer;
-  /* aparece no hover da faixa; continua no tab para teclado */
-  opacity: 0;
   transition:
-    opacity var(--dur-rapida),
+    background-color var(--dur-rapida),
+    border-color var(--dur-rapida),
     color var(--dur-rapida),
-    background-color var(--dur-rapida);
+    transform 100ms;
 }
 
-.linha:hover .remover,
-.linha:focus-within .remover,
-.remover:focus-visible {
-  opacity: 1;
+.passo:hover:not(:disabled) {
+  border-color: var(--azul-400);
+  color: var(--azul-700);
 }
 
-.remover:hover {
-  color: var(--erro-base);
-  background: var(--erro-suave);
+.passo:active:not(:disabled) {
+  transform: scale(0.94);
 }
 
-.mensagemLinha {
-  grid-column: 1 / -1;
+.passo:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.mensagemItem {
+  grid-column: 2 / -1;
   font-size: 12px;
-  color: var(--erro-forte);
-  margin-top: -4px;
-}
-
-.mensagemLinhaAlerta {
   color: var(--alerta-forte);
+  margin-top: -6px;
 }
 
-.adicionar {
-  margin-top: 12px;
+@media (max-width: 720px) {
+  .item {
+    grid-template-columns: 40px 1fr;
+  }
+  .itemTotal {
+    text-align: left;
+    grid-column: 2;
+  }
+  .stepper {
+    grid-column: 2;
+  }
 }
 
 .dicaItens {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--gelo-600);
-  padding: 8px 12px;
+  padding: 8px 0;
 }
 
 /* --- Barra de totais fixa --- */

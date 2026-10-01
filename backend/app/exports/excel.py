@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 
 from app.dominio import Relatorio
 
-# Cores da identidade visual (id-visual.md)
+# Cores da identidade visual (mesmos valores de frontend/src/styles/tokens.css)
 COR_AZUL_900 = "0B2F58"
 COR_GELO_50 = "F8FAFD"
 COR_GELO_100 = "F0F4F9"

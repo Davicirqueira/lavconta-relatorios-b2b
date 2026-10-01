@@ -1,21 +1,20 @@
 /**
- * TelaClientes — gestão de clientes-empresa.
+ * TelaClientes — gestão de clientes-empresa, em cartões.
  *
- * Estados obrigatórios (regras-interface.md):
- *   1. Carregando  — Skeleton
- *   2. Vazio       — EstadoVazio orientando a criar o primeiro cliente
- *   3. Com dados   — tabela com busca e alternância de inativos
- *   4. Erro        — banner com opção de tentar novamente
+ * Estados obrigatórios (regras-interface.md): carregando, vazio, com dados e
+ * erro. Cartão com iniciais, situação e ações (avaliação, Parte A item 6);
+ * sem endereço, volume ou último pedido (avaliação B7 e escopo).
  *
- * Exclusão só é permitida sem lançamentos; com histórico, a API devolve
+ * Exclusão só sem lançamentos; com histórico, a API devolve
  * EXCLUSAO_COM_HISTORICO e a tela sugere inativação.
  */
 
 import { useState } from "react";
-import { Plus, Pencil, PowerOff, Power, Trash2, Building2 } from "lucide-react";
+import { Building2, Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
 import { Botao } from "@/components/Botao";
-import { Badge } from "@/components/Badge";
-import { SkeletonTabela } from "@/components/Skeleton";
+import { CampoBusca } from "@/components/CampoBusca";
+import { CartaoGestao, GradeCartoes, iniciais } from "@/components/CartaoGestao";
+import { Skeleton } from "@/components/Skeleton";
 import { EstadoVazio } from "@/components/EstadoVazio";
 import { DialogoConfirmacao } from "@/components/DialogoConfirmacao";
 import { useToast } from "@/components/Toast";
@@ -24,13 +23,13 @@ import type { Cliente } from "@/types/api";
 import {
   useClientes,
   useCriarCliente,
-  useRenomearCliente,
+  useExcluirCliente,
   useInativarCliente,
   useReativarCliente,
-  useExcluirCliente,
+  useRenomearCliente,
 } from "./hooks";
 import { FormularioCliente } from "./FormularioCliente";
-import styles from "./TelaClientes.module.css";
+import pagina from "@/components/Pagina.module.css";
 
 export function TelaClientes() {
   const [incluirInativos, setIncluirInativos] = useState(false);
@@ -47,10 +46,8 @@ export function TelaClientes() {
   const excluirCliente = useExcluirCliente();
   const { mostrar } = useToast();
 
-  // Filtro de busca por nome (client-side, sobre dados já carregados)
-  const clientesFiltrados = (clientes ?? []).filter((c) =>
-    c.nome.toLowerCase().includes(busca.toLowerCase()),
-  );
+  const termo = busca.trim().toLowerCase();
+  const filtrados = (clientes ?? []).filter((c) => c.nome.toLowerCase().includes(termo));
 
   async function handleSalvar(nome: string) {
     if (clienteEditando) {
@@ -86,14 +83,8 @@ export function TelaClientes() {
       await excluirCliente.mutateAsync(confirmarExclusao.id);
       mostrar(`${confirmarExclusao.nome} foi excluído.`, "sucesso");
     } catch (err) {
-      if (
-        err instanceof ErroDeApi &&
-        err.codigo === "EXCLUSAO_COM_HISTORICO"
-      ) {
-        mostrar(
-          "Este cliente tem lançamentos. Use a opção Inativar para desativá-lo.",
-          "alerta",
-        );
+      if (err instanceof ErroDeApi && err.codigo === "EXCLUSAO_COM_HISTORICO") {
+        mostrar("Este cliente tem lançamentos. Use a opção Inativar para desativá-lo.", "alerta");
       } else {
         mostrar("Não foi possível excluir o cliente.", "erro");
       }
@@ -112,50 +103,21 @@ export function TelaClientes() {
     setFormularioAberto(true);
   }
 
-  // --- Estados de carregamento e erro ---
-
-  if (isLoading) {
-    return (
-      <div>
-        <div className={styles.cabecalho}>
-          <h1 className={styles.titulo}>Clientes</h1>
-        </div>
-        <SkeletonTabela linhas={6} />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div>
-        <div className={styles.cabecalho}>
-          <h1 className={styles.titulo}>Clientes</h1>
-        </div>
-        <div className={styles.erroCarregamento}>
-          Não foi possível carregar os clientes.{" "}
-          <Botao variante="fantasma" tamanho="sm" onClick={() => refetch()}>
-            Tentar novamente
-          </Botao>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
-      {/* Cabeçalho */}
-      <div className={styles.cabecalho}>
-        <h1 className={styles.titulo}>Clientes</h1>
-        <div className={styles.controles}>
-          <input
-            type="search"
+      <div className={pagina.cabecalho}>
+        <div>
+          <h1 className={pagina.titulo}>Clientes</h1>
+          <p className={pagina.subtitulo}>Empresas atendidas pela lavanderia.</p>
+        </div>
+        <div className={pagina.controles}>
+          <CampoBusca
+            valor={busca}
+            aoMudar={setBusca}
+            rotulo="Buscar cliente"
             placeholder="Buscar cliente…"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className={styles.busca}
-            aria-label="Buscar cliente"
           />
-          <label className={styles.switchInativos}>
+          <label className={pagina.alternancia}>
             <input
               type="checkbox"
               checked={incluirInativos}
@@ -163,135 +125,84 @@ export function TelaClientes() {
             />
             Mostrar inativos
           </label>
-          <Botao variante="primario" onClick={abrirNovoCliente}>
+          <Botao onClick={abrirNovoCliente}>
             <Plus size={16} aria-hidden="true" />
             Novo cliente
           </Botao>
         </div>
       </div>
 
-      {/* Estado vazio */}
-      {clientesFiltrados.length === 0 ? (
-        <EstadoVazio
-          icone={<Building2 size={28} />}
-          titulo={busca ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
-          descricao={
-            busca
-              ? "Tente outro termo de busca."
-              : "Comece cadastrando o primeiro cliente-empresa."
-          }
-          rotuloBotao={busca ? undefined : "Novo cliente"}
-          onAcao={busca ? undefined : abrirNovoCliente}
-        />
-      ) : (
-        /* Tabela */
-        <div
-          style={{
-            background: "var(--branco)",
-            border: "1px solid var(--gelo-200)",
-            borderRadius: "var(--raio-lg)",
-            boxShadow: "var(--sombra-1)",
-            overflow: "hidden",
-          }}
-        >
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-            aria-label="Lista de clientes"
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "var(--gelo-100)",
-                  borderBottom: "1px solid var(--gelo-200)",
-                }}
-              >
-                <Th>Nome</Th>
-                <Th>Situação</Th>
-                <Th align="right">Ações</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientesFiltrados.map((cliente) => (
-                <tr
-                  key={cliente.id}
-                  style={{
-                    borderBottom: "1px solid var(--gelo-200)",
-                    transition: "background-color 120ms",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--azul-50)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "")
-                  }
-                >
-                  <Td>
-                    <span
-                      style={{
-                        fontWeight: 500,
-                        color: "var(--gelo-800)",
-                        opacity: cliente.ativo ? 1 : 0.55,
-                      }}
-                    >
-                      {cliente.nome}
-                    </span>
-                  </Td>
-                  <Td>
-                    <Badge tipo={cliente.ativo ? "sucesso" : "neutro"}>
-                      {cliente.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </Td>
-                  <Td align="right">
-                    <div className={styles.acoes}>
-                      <button
-                        className={styles.botaoAcao}
-                        onClick={() => abrirEdicao(cliente)}
-                        title="Renomear"
-                        aria-label={`Renomear ${cliente.nome}`}
-                        type="button"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      {cliente.ativo ? (
-                        <button
-                          className={styles.botaoAcao}
-                          onClick={() => handleInativar(cliente)}
-                          title="Inativar"
-                          aria-label={`Inativar ${cliente.nome}`}
-                          type="button"
-                        >
-                          <PowerOff size={15} />
-                        </button>
-                      ) : (
-                        <button
-                          className={styles.botaoAcao}
-                          onClick={() => handleReativar(cliente)}
-                          title="Reativar"
-                          aria-label={`Reativar ${cliente.nome}`}
-                          type="button"
-                        >
-                          <Power size={15} />
-                        </button>
-                      )}
-                      <button
-                        className={`${styles.botaoAcao} ${styles.botaoAcaoDestrutivo}`}
-                        onClick={() => setConfirmarExclusao(cliente)}
-                        title="Excluir"
-                        aria-label={`Excluir ${cliente.nome}`}
-                        type="button"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {isLoading && (
+        <GradeCartoes rotulo="Carregando clientes">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} role="listitem">
+              <Skeleton variante="bloco" />
+            </div>
+          ))}
+        </GradeCartoes>
+      )}
+
+      {isError && (
+        <div className={pagina.bannerErro} role="alert">
+          Não foi possível carregar os clientes.
+          <Botao variante="fantasma" tamanho="sm" onClick={() => refetch()}>
+            Tentar novamente
+          </Botao>
         </div>
       )}
 
-      {/* Modal de formulário */}
+      {!isLoading && !isError && filtrados.length === 0 && (
+        <EstadoVazio
+          icone={<Building2 size={28} />}
+          titulo={termo ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+          descricao={
+            termo
+              ? "Tente outro termo de busca."
+              : "Comece cadastrando a primeira empresa atendida."
+          }
+          rotuloBotao={termo ? undefined : "Novo cliente"}
+          onAcao={termo ? undefined : abrirNovoCliente}
+        />
+      )}
+
+      {!isLoading && !isError && filtrados.length > 0 && (
+        <GradeCartoes rotulo="Clientes">
+          {filtrados.map((cliente, indice) => (
+            <CartaoGestao
+              key={cliente.id}
+              indice={indice}
+              titulo={cliente.nome}
+              ativo={cliente.ativo}
+              marca={iniciais(cliente.nome)}
+              acoes={[
+                {
+                  rotulo: "Renomear",
+                  icone: <Pencil size={14} aria-hidden="true" />,
+                  aoClicar: () => abrirEdicao(cliente),
+                },
+                cliente.ativo
+                  ? {
+                      rotulo: "Inativar",
+                      icone: <PowerOff size={14} aria-hidden="true" />,
+                      aoClicar: () => handleInativar(cliente),
+                    }
+                  : {
+                      rotulo: "Reativar",
+                      icone: <Power size={14} aria-hidden="true" />,
+                      aoClicar: () => handleReativar(cliente),
+                    },
+                {
+                  rotulo: "Excluir",
+                  icone: <Trash2 size={14} aria-hidden="true" />,
+                  aoClicar: () => setConfirmarExclusao(cliente),
+                  destrutiva: true,
+                },
+              ]}
+            />
+          ))}
+        </GradeCartoes>
+      )}
+
       <FormularioCliente
         aberto={formularioAberto}
         clienteEditando={clienteEditando}
@@ -299,12 +210,10 @@ export function TelaClientes() {
         onSalvar={handleSalvar}
       />
 
-      {/* Diálogo de confirmação de exclusão */}
       <DialogoConfirmacao
         aberto={!!confirmarExclusao}
         titulo="Excluir cliente"
-        descricao={`Tem certeza que deseja excluir "${confirmarExclusao?.nome}"? Esta ação não pode ser desfeita.`}
-        rotuloBotaoConfirmar="Excluir"
+        descricao={`Tem certeza? Excluir "${confirmarExclusao?.nome}"? Clientes com lançamentos não podem ser excluídos; nesse caso, use Inativar.`}
         carregando={excluirCliente.isPending}
         onConfirmar={handleExcluir}
         onCancelar={() => setConfirmarExclusao(undefined)}
@@ -312,54 +221,3 @@ export function TelaClientes() {
     </div>
   );
 }
-
-// Auxiliares de célula de tabela para evitar repetição de estilo
-function Th({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <th
-      scope="col"
-      style={{
-        padding: "12px 16px",
-        textAlign: align ?? "left",
-        fontSize: 12,
-        fontWeight: 500,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-        color: "var(--gelo-600)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <td
-      style={{
-        padding: "12px 16px",
-        textAlign: align ?? "left",
-        color: "var(--gelo-700)",
-        verticalAlign: "middle",
-      }}
-    >
-      {children}
-    </td>
-  );
-}
-
-// Importação necessária para o auxiliar Th/Td inline
-import React from "react";

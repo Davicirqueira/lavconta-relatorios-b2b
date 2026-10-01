@@ -36,7 +36,7 @@ export function barrasDoPeriodo(
 }
 
 /**
- * Rampa azul-300 → azul-700 conforme o volume (id-visual §6).
+ * Rampa azul-300 → azul-700 conforme o volume (brief-design §5, volume diário).
  * Devolve o nome do token CSS, não uma cor calculada.
  */
 export function tomDaBarra(proporcao: number): string {

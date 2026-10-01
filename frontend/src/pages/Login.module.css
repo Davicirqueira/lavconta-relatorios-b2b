@@ -1,41 +1,93 @@
+/* Telas de autenticação: login, recuperação e redefinição de senha */
+
 .fundo {
   min-height: 100dvh;
-  background-color: var(--gelo-50);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 32px 24px;
+  /* tingido sutil da família azul, sem competir com o cartão */
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--azul-50), transparent 70%),
+    var(--gelo-50);
 }
 
-.cartao {
-  background: var(--branco);
-  border: 1px solid var(--gelo-200);
-  border-radius: var(--raio-xl);
-  box-shadow: var(--sombra-2);
-  padding: 40px;
+.coluna {
   width: 100%;
   max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 24px;
+  animation: entrar var(--dur-lenta) var(--ease-padrao) both;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .marca {
-  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
+.selo {
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  border-radius: var(--raio-lg);
+  background: linear-gradient(160deg, var(--azul-600), var(--azul-800));
+  color: var(--branco);
+  box-shadow: var(--sombra-2);
+}
+
 .logotipo {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
-  color: var(--azul-800);
+  color: var(--gelo-900);
   letter-spacing: -0.02em;
 }
 
 .subtitulo {
-  font-size: 13px;
-  color: var(--gelo-500);
-  margin-top: 4px;
+  font-size: 14px;
+  color: var(--gelo-600);
+  margin-top: 2px;
+}
+
+.cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+  background: var(--branco);
+  border: 1px solid var(--gelo-200);
+  border-radius: var(--raio-xl);
+  box-shadow: var(--sombra-3);
+}
+
+.titulo {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gelo-800);
+  letter-spacing: -0.01em;
+}
+
+.descricao {
+  margin-top: -12px;
+  font-size: 14px;
+  color: var(--gelo-600);
+  line-height: 1.5;
 }
 
 .form {
@@ -52,15 +104,29 @@
 }
 
 .linkEsqueci {
-  text-align: center;
   font-size: 13px;
+  font-weight: 500;
   color: var(--azul-600);
   text-decoration: none;
-  margin-top: 4px;
 }
 
 .linkEsqueci:hover {
   text-decoration: underline;
+}
+
+.voltar {
+  text-align: center;
+}
+
+.aviso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gelo-200);
+  font-size: 12px;
+  color: var(--gelo-600);
 }
 
 .erro {
@@ -84,5 +150,6 @@
   border: 1px solid var(--sucesso-borda);
   border-radius: var(--raio-md);
   font-size: 14px;
+  line-height: 1.5;
   color: var(--sucesso-forte);
 }

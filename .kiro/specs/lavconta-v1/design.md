@@ -680,7 +680,7 @@ legibilidade de Data, Total de peças e Total R$ (as três que sempre importam).
 `pdfmetrics.registerFont`, em vez de usar a Helvetica padrão do reportlab. O documento é
 o artefato que chega ao cliente-empresa; usar a mesma família da interface mantém a
 relação de valores reconhecível como saída do Lavconta. Como a identidade agora é de
-**família única** (`id-visual.md` §2), é um arquivo de fonte para registrar, não dois.
+**família única** (`brief-design.md` §3), é um arquivo de fonte para registrar, não dois.
 
 ### Nota de supply chain
 

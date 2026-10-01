@@ -1,18 +1,18 @@
 /**
- * Tela de Login — cartão único sobre fundo gelo-50.
+ * Tela de Login.
  *
- * Campos: e-mail e senha. Botão primário "Entrar".
- * Link discreto "Esqueceu sua senha?".
- * SEM link de cadastro (disable_signup=true no Supabase).
- * Erro: banner único acima do formulário (não por campo — não revela
- * se o e-mail existe ou não).
+ * E-mail e senha, botão "Entrar", link "Esqueceu a senha?" junto ao rótulo da
+ * senha (protótipo). SEM link de cadastro (disable_signup=true no Supabase).
+ * Erro: banner único acima do formulário — não indica se o e-mail existe.
  */
 
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
+import { ArrowRight, Lock, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Campo } from "@/components/Campo";
 import { Botao } from "@/components/Botao";
+import { MolduraAutenticacao } from "@/features/auth/MolduraAutenticacao";
 import styles from "./Login.module.css";
 
 export function PaginaLogin() {
@@ -44,52 +44,46 @@ export function PaginaLogin() {
   }
 
   return (
-    <div className={styles.fundo}>
-      <div className={styles.cartao}>
-        <div className={styles.marca}>
-          <h1 className={styles.logotipo}>Lavconta</h1>
-          <p className={styles.subtitulo}>Relatórios B2B</p>
+    <MolduraAutenticacao titulo="Entrar">
+      {erroGeral && (
+        <div className={styles.erro} role="alert">
+          {erroGeral}
         </div>
+      )}
 
-        {erroGeral && (
-          <div className={styles.erro} role="alert">
-            {erroGeral}
-          </div>
-        )}
-
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <Campo
-            rotulo="E-mail"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Campo
-            rotulo="Senha"
-            type="password"
-            autoComplete="current-password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-          />
-
-          <div className={styles.acoes}>
-            <Botao
-              type="submit"
-              variante="primario"
-              tamanho="lg"
-              carregando={carregando}
-            >
-              Entrar
-            </Botao>
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <Campo
+          rotulo="E-mail"
+          type="email"
+          autoComplete="email"
+          icone={<Mail size={16} />}
+          placeholder="nome@lavandix.com.br"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Campo
+          rotulo="Senha"
+          type="password"
+          autoComplete="current-password"
+          icone={<Lock size={16} />}
+          extraRotulo={
             <Link to="/esqueci-senha" className={styles.linkEsqueci}>
-              Esqueceu sua senha?
+              Esqueceu a senha?
             </Link>
-          </div>
-        </form>
-      </div>
-    </div>
+          }
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          required
+        />
+
+        <div className={styles.acoes}>
+          <Botao type="submit" variante="primario" tamanho="lg" carregando={carregando}>
+            Entrar
+            <ArrowRight size={16} aria-hidden="true" />
+          </Botao>
+        </div>
+      </form>
+    </MolduraAutenticacao>
   );
 }

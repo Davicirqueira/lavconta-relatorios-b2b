@@ -1,7 +1,8 @@
 /*
  * Lavconta — tokens de design
  *
- * Fonte da verdade: .kiro/steering/id-visual.md §7 e prototipo/brief-design.md
+ * Fonte da verdade dos tokens. Expressão visual em .kiro/specs/lavconta-v1/prototipo/
+ * brief-design.md; essência visual nas telas do protótipo (.kiro/img*.png).
  * Este arquivo é importado uma vez em main.tsx e define toda a paleta,
  * tipografia, sombras, raios e curvas de movimento da aplicação.
  */

@@ -27,11 +27,15 @@ const CHAVE = "precos";
 export function usePrecosDoMes(
   clienteId: string,
   mes: string, // "YYYY-MM"
+  incluirInativos = false,
 ): UseQueryResult<PrecosDoMes, ErroDeApi> {
   return useQuery({
-    queryKey: [CHAVE, clienteId, mes],
+    queryKey: [CHAVE, clienteId, mes, { incluirInativos }],
     queryFn: () =>
-      apiGet<PrecosDoMes>(`/api/clientes/${clienteId}/precos`, { mes }),
+      apiGet<PrecosDoMes>(`/api/clientes/${clienteId}/precos`, {
+        mes,
+        incluir_inativos: incluirInativos,
+      }),
     enabled: !!clienteId && !!mes,
   });
 }

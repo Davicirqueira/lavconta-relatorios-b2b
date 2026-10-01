@@ -1,24 +1,5 @@
-.cabecalho {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-}
-
-.titulo {
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--gelo-800);
-  letter-spacing: -0.02em;
-}
-
-.filtros {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
+.filtroMes {
+  min-width: 200px;
 }
 
 .tabela {

@@ -31,26 +31,6 @@ export function diasNoMes(ano: number, mes: number): number {
 }
 
 /**
- * Valida uma data digitada em dd/mm/yyyy e devolve o ISO, ou null.
- *
- * Valida calendário real: 31/02 e 29/02 em ano não bissexto são recusados.
- * É validação de formato de entrada, não regra de negócio — a data futura,
- * por exemplo, continua sendo decidida pelo servidor.
- */
-export function interpretarDataBr(br: string): string | null {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(br);
-  if (!match) return null;
-  const [, diaTxt, mesTxt, anoTxt] = match;
-  const dia = Number(diaTxt);
-  const mes = Number(mesTxt);
-  const ano = Number(anoTxt);
-  if (ano < 2000 || ano > 2099) return null;
-  if (mes < 1 || mes > 12) return null;
-  if (dia < 1 || dia > diasNoMes(ano, mes)) return null;
-  return `${anoTxt}-${mesTxt}-${diaTxt}`;
-}
-
-/**
  * Todos os dias de calendário entre `inicio` e `fim` (inclusive), em ISO.
  *
  * Aritmética em UTC sobre os componentes da data: como nada é interpretado
