@@ -107,17 +107,14 @@ export function TelaRelatorio() {
       <div className={pagina.cabecalho}>
         <h1 className={pagina.titulo}>Relatório de fechamento</h1>
         <div className={styles.exportar}>
-          {/* PDF do relatório geral entra na Fase 5 (tarefa 22) */}
-          {!geral && (
-            <Botao
-              variante="secundario"
-              onClick={() => exportar("pdf")}
-              disabled={!podeExportar}
-              carregando={exportando === "pdf"}
-            >
-              <FileDown size={16} aria-hidden="true" /> Exportar PDF
-            </Botao>
-          )}
+          <Botao
+            variante="secundario"
+            onClick={() => exportar("pdf")}
+            disabled={!podeExportar}
+            carregando={exportando === "pdf"}
+          >
+            <FileDown size={16} aria-hidden="true" /> Exportar PDF
+          </Botao>
           <Botao
             variante="secundario"
             onClick={() => exportar("excel")}
