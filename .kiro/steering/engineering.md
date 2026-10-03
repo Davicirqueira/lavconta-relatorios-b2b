@@ -4,9 +4,23 @@
 > produto, regras de negócio, tech e estrutura. Estas são decisões fixas do projeto,
 > a serem respeitadas durante todo o desenvolvimento.
 
+## Prioridades de abordagem (top 3)
+
+Toda decisão de implementação é avaliada, nesta ordem de igual peso, por:
+
+1. **Experiência do usuário** — a pessoa conclui a tarefa sem esforço nem dúvida.
+   Textos de interface em **linguagem acessível**: dizem o que a aplicação faz, no
+   vocabulário do negócio, sem termos técnicos (nada de "vigência", "registro",
+   "erro 409" para o usuário). Detalhe na skill `design-de-interface`.
+2. **Segurança** — §3 a §6 deste documento e skill `gestao-segredos`.
+3. **Arquitetura modular** — §1 deste documento: camadas com responsabilidade
+   única, padrões compartilhados em vez de cópia.
+
+Quando duas delas conflitarem, explicitar o conflito e decidir com o usuário.
+
 ## 0. Skills que reforçam este steering
 
-Quatro skills carregam as diretrizes operacionais em detalhe. Ativá-las quando o
+Cinco skills carregam as diretrizes operacionais em detalhe. Ativá-las quando o
 contexto casar:
 
 - **`boas-praticas`** — planejamento, código modular, qualidade, segurança geral e
@@ -21,10 +35,17 @@ contexto casar:
   vez, distinguir fato observado de inferência, e as zonas em que memória não vale
   (versão de dependência, caminho de API, comportamento interno de biblioteca,
   ambiente do usuário).
+- **`design-de-interface`** — UI/UX: arquitetura visual em camadas, cores com
+  papel, componentes com estados completos, layout medido em larguras reais,
+  design de produto centrado na tarefa, escrita de interface acessível e
+  acessibilidade.
 
-As duas últimas nasceram de defeitos reais desta implementação: um teste estrutural
+`estrategia-de-teste` e `diagnostico-e-verificacao` nasceram de defeitos reais desta implementação: um teste estrutural
 de autenticação que ficou cego a rotas incluídas, versões de pacote inventadas de
 memória, e um diagnóstico de login atribuído à causa errada antes de haver evidência.
+`design-de-interface` nasceu dos ajustes visuais da v1: ações de cartão vazando só
+em algumas larguras, cartão de "adicionar" menor que os vizinhos, cabeçalhos
+diferentes entre telas e texto de preço que sugeria troca mensal.
 
 O steering fixa as **decisões**; as skills detalham a **prática**. Em conflito,
 o steering do projeto tem precedência.
@@ -36,7 +57,7 @@ Camadas com responsabilidade única, sem vazamento entre elas:
 - **`routers/`** — só transporte HTTP: validar entrada com Pydantic, chamar um
   `service`, mapear a saída. **Zero regra de negócio.**
 - **`services/`** — única autoridade de negócio: cálculo de totais, congelamento de
-  valor no lançamento, resolução de preço vigente por mês, validação de unicidade
+  valor no lançamento, resolução de preço vigente por data, validação de unicidade
   `(cliente, data)` e `(cliente, comanda)`, montagem de relatório e exportação.
 - **Camada de dados (repositório):** o acesso ao banco fica isolado em uma camada de
   repositório. Os `services` dependem de repositórios, não do ORM diretamente. Isso
@@ -131,7 +152,8 @@ atualizar qualquer dependência (npm ou PyPI):
   (API) no repositório, sem segredo embutido — os valores sensíveis ficam nas env
   vars de cada plataforma.
 - **Testes priorizados** (conforme regra de negócio): cálculo de totais, resolução de
-  preço vigente por mês, congelamento de valor, unicidade `(cliente, data)` e
+  preço vigente por data (véspera, dia e dia seguinte a uma alteração; correção no
+  mesmo dia; pedido retroativo), congelamento de valor, unicidade `(cliente, data)` e
   unicidade parcial de comanda, e validação de JWT.
 - **"Compilou" não é "funciona":** validar contra o critério de sucesso definido. Se
   algo não pôde ser verificado (ambiente/dependência ausente), dizer explicitamente.

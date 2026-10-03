@@ -25,48 +25,61 @@ export interface Cliente {
 // Itens (catálogo)                                                    //
 // ------------------------------------------------------------------ //
 
-/** Espelha `ItemResposta` do backend. */
+/** Espelha `ItemResposta` do backend (v1.1: com o preço que vale hoje). */
 export interface Item {
   id: string;
   cliente_id: string;
   nome: string;
   ativo: boolean;
+  /** Null quando o item ainda não tem preço. */
+  preco_atual: PrecoAtual | null;
+}
+
+/** Corpo de criação: nome e preço juntos (o preço é obrigatório). */
+export interface ItemNovo {
+  nome: string;
+  /** Texto decimal ("4.50"), nunca número */
+  valor_unitario: string;
 }
 
 // ------------------------------------------------------------------ //
-// Preços                                                              //
+// Preços (v1.1: o preço vale a partir de um dia até ser alterado)     //
 // ------------------------------------------------------------------ //
 
+export interface PrecoAtual {
+  /** String decimal */
+  valor_unitario: string;
+  /** Dia em que o preço começou a valer (YYYY-MM-DD) */
+  desde: string;
+  /** Começou hoje: mudar e corrigir têm o mesmo efeito */
+  e_hoje: boolean;
+}
+
+/** Como a alteração é aplicada. Pedidos já registrados não mudam em nenhum. */
+export type ModoDeAlteracao = "a_partir_de_hoje" | "corrigir_atual";
+
+export interface AlteracaoDePreco {
+  valor_unitario: string;
+  modo: ModoDeAlteracao;
+}
+
+export interface ImpactoDaAlteracao {
+  pedidos_com_valor_anterior: number;
+}
+
+/** Preço de um item numa data (formulário de pedido). */
 export interface ItemComPreco {
   item_id: string;
   nome: string;
   /** String decimal ou null quando sem preço */
   valor_unitario: string | null;
-  /** Mês de origem do preço ("YYYY-MM") ou null */
-  vigencia_origem: string | null;
+  desde: string | null;
   sem_preco: boolean;
 }
 
-export interface PrecosDoMes {
-  /** Mês consultado no formato "YYYY-MM" */
-  mes: string;
+export interface PrecosNaData {
+  data: string;
   itens: ItemComPreco[];
-}
-
-export interface PrecoResposta {
-  id: string;
-  cliente_id: string;
-  item_id: string;
-  /** Mês de vigência no formato "YYYY-MM" */
-  vigencia_mes: string;
-  /** String decimal */
-  valor_unitario: string;
-}
-
-export interface VigenciaSugerida {
-  /** Mês sugerido no formato "YYYY-MM" */
-  vigencia_mes: string;
-  e_primeiro_preco: boolean;
 }
 
 // ------------------------------------------------------------------ //
@@ -154,7 +167,31 @@ export interface LinhaRelatorio {
   total_valor: string;
 }
 
+/** Um item a um valor por peça, somado no período (v1.1). */
+export interface LinhaResumoItem {
+  item_id: string;
+  item_nome: string;
+  valor_unitario: string;
+  quantidade: number;
+  subtotal: string;
+}
+
+/** Relatório de todos os clientes do período (v1.1, Req 5). */
+export interface RelatorioGeral {
+  periodo: { inicio: string; fim: string };
+  secoes: {
+    cliente: { id: string; nome: string };
+    linhas: LinhaResumoItem[];
+    total_pecas: number;
+    total_valor: string;
+  }[];
+  total_pecas: number;
+  total_valor: string;
+}
+
 export interface Relatorio {
+  /** Peças e subtotal por item e valor por peça (v1.1) */
+  resumo_por_item: LinhaResumoItem[];
   cliente: { id: string; nome: string };
   periodo: { inicio: string; fim: string };
   colunas_itens: ColunaItemRelatorio[];

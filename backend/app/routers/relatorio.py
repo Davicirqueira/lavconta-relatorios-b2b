@@ -15,11 +15,11 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from app.core.banco import SessaoBanco
 from app.core.rate_limit import limiter
 from app.core.seguranca import usuario_atual
-from app.exports.excel import gerar_excel
-from app.exports.pdf import gerar_pdf
+from app.exports.excel import gerar_excel, gerar_excel_geral
+from app.exports.pdf import gerar_pdf, gerar_pdf_geral
 from app.repositories.cliente_repo import RepositorioCliente
 from app.repositories.lancamento_repo import RepositorioLancamento
-from app.schemas.relatorio import RelatorioResposta
+from app.schemas.relatorio import RelatorioGeralResposta, RelatorioResposta
 from app.services.servico_relatorio import ServicoRelatorio
 
 router = APIRouter(
@@ -43,6 +43,56 @@ def _nome_do_arquivo(cliente_nome: str, inicio: date, fim: date, extensao: str) 
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", sem_acento.lower()).strip("-")
     slug_final = slug or "relatorio"
     return f"fechamento-{slug_final}-{inicio.isoformat()}-a-{fim.isoformat()}.{extensao}"
+
+
+NOME_GERAL = "todos-os-clientes"
+MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.get("/geral", response_model=RelatorioGeralResposta)
+def gerar_relatorio_geral(
+    sessao: SessaoBanco,
+    inicio: Annotated[date, Query(description="Primeiro dia do período (YYYY-MM-DD).")],
+    fim: Annotated[date, Query(description="Último dia do período, inclusive.")],
+) -> RelatorioGeralResposta:
+    """Todos os clientes com pedido no período: itens, valores e total geral (v1.1)."""
+    return RelatorioGeralResposta.do_dominio(_servico(sessao).gerar_geral(inicio, fim))
+
+
+@router.get("/geral/excel")
+@limiter.limit("30/minute")
+def exportar_excel_geral(
+    request: Request,
+    sessao: SessaoBanco,
+    inicio: Annotated[date, Query(description="Primeiro dia do período (YYYY-MM-DD).")],
+    fim: Annotated[date, Query(description="Último dia do período, inclusive.")],
+) -> Response:
+    """Planilha do relatório geral: aba de resumo e uma aba por cliente."""
+    conteudo = gerar_excel_geral(_servico(sessao).gerar_geral(inicio, fim))
+    nome_arquivo = _nome_do_arquivo(NOME_GERAL, inicio, fim, "xlsx")
+    return Response(
+        content=conteudo,
+        media_type=MIME_XLSX,
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
+
+
+@router.get("/geral/pdf")
+@limiter.limit("30/minute")
+def exportar_pdf_geral(
+    request: Request,
+    sessao: SessaoBanco,
+    inicio: Annotated[date, Query(description="Primeiro dia do período (YYYY-MM-DD).")],
+    fim: Annotated[date, Query(description="Último dia do período, inclusive.")],
+) -> Response:
+    """PDF do relatório geral: um bloco por cliente e o total geral."""
+    conteudo = gerar_pdf_geral(_servico(sessao).gerar_geral(inicio, fim))
+    nome_arquivo = _nome_do_arquivo(NOME_GERAL, inicio, fim, "pdf")
+    return Response(
+        content=conteudo,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
 
 
 @router.get("", response_model=RelatorioResposta)

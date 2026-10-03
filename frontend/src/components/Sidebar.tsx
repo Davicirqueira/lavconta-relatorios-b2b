@@ -25,7 +25,6 @@ import {
   FileBarChart2,
   Building2,
   Shirt,
-  Tag,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -40,8 +39,8 @@ const ITENS_NAV = [
   { para: "/lancamentos", rotulo: "Lançamentos",  Icone: ClipboardList },
   { para: "/relatorio",   rotulo: "Relatório",    Icone: FileBarChart2 },
   { para: "/clientes",    rotulo: "Clientes",     Icone: Building2 },
+  // v1.1: o preço fica no Catálogo, junto com o item (não há tela de Preços)
   { para: "/catalogo",    rotulo: "Catálogo",     Icone: Shirt },
-  { para: "/precos",      rotulo: "Preços",       Icone: Tag },
 ] as const;
 
 export function Sidebar() {

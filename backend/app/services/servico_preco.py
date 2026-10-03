@@ -1,26 +1,31 @@
-"""Regra de negócio de Preço e resolução da vigência (Req 4).
+"""Regra de negócio de Preço (v1.1, Req 1).
 
 A REGRA EM UMA FRASE
-    O preço definido para um mês vale daquele mês em diante, até que outro seja
-    definido.
+    O preço vale a partir do dia em que é definido e continua valendo até ser
+    alterado, mesmo que o mês vire.
 
-    Consequência prática: não há redigitação na virada do mês. E alteração feita
-    no meio do mês não afeta o mês corrente — ela é registrada com vigência no mês
-    seguinte (Req 4.5).
+QUEM DECIDE "HOJE"
+    O próprio serviço, pelo relógio injetado (padrão: ``hoje_sp``). A data de
+    início nunca vem do cliente HTTP (Req 1.2): o navegador não escolhe a partir
+    de quando um preço vale.
 
-POR QUE A DATA DE REFERÊNCIA É A DO LANÇAMENTO
-    A resolução usa o mês da **data do pedido**, nunca a data corrente (Req 4.7).
-    Sem isso, um lançamento retroativo — registrado em setembro para um pedido de
-    agosto — receberia o preço de setembro e cobraria valor errado.
+POR QUE A DATA DE REFERÊNCIA É A DO PEDIDO
+    A resolução usa a **data do pedido**, nunca a data em que ele é digitado
+    (Req 1.3). Um pedido do dia 5 lançado no dia 12, depois de uma alteração no
+    dia 10, usa o preço antigo — é o que o cliente confere contra os pedidos.
 
 ITEM SEM PREÇO
-    Se nenhum preço existe até o mês de referência, o item é reportado como sem
-    preço. Não existe valor zero implícito: cobrar zero por engano é pior que
-    recusar a operação (Req 4.8 e 5.14).
+    Só quando o item não tem nenhum preço. Não existe valor zero implícito:
+    cobrar zero por engano é pior que recusar a operação.
+
+PEDIDO GRAVADO NÃO MUDA
+    Nenhuma operação daqui toca ``lancamento_linhas``: o valor do pedido está
+    congelado. ``impacto`` só conta quantos pedidos mantêm o valor anterior, para
+    o operador ser avisado antes de confirmar (Req 1.6 e 1.13).
 """
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 from decimal import Decimal
 from typing import NoReturn
@@ -28,9 +33,10 @@ from typing import NoReturn
 from sqlalchemy.exc import IntegrityError
 
 from app.core.banco import nome_da_constraint_violada
-from app.core.datas import mes_seguinte, primeiro_dia_do_mes
+from app.core.datas import hoje_sp
 from app.core.erros import CodigoErro, ErroDeDominio, nao_encontrado
-from app.dominio import PrecoVigente, ResolucaoDePrecos, SugestaoDeVigencia
+from app.dominio import ModoDeAlteracao, PrecoVigente, ResolucaoDePrecos
+from app.models.item import Item
 from app.models.preco import Preco
 from app.repositories.protocolos import (
     RepositorioClienteProtocolo,
@@ -38,11 +44,10 @@ from app.repositories.protocolos import (
     RepositorioPrecoProtocolo,
 )
 
-CONSTRAINT_UNICA_POR_MES = "uq_precos_cliente_item_mes"
+CONSTRAINT_UNICA_POR_DIA = "uq_precos_cliente_item_inicio"
 CONSTRAINT_VALOR_POSITIVO = "ck_precos_valor_positivo"
-CONSTRAINT_PRIMEIRO_DIA = "ck_precos_vigencia_primeiro_dia"
 
-# Duas casas: padrão monetário, sem fração de centavo (Req 4.12)
+# Duas casas: padrão monetário, sem fração de centavo
 CASAS_DECIMAIS = 2
 
 
@@ -52,10 +57,13 @@ class ServicoPreco:
         repositorio: RepositorioPrecoProtocolo,
         repositorio_cliente: RepositorioClienteProtocolo,
         repositorio_item: RepositorioItemProtocolo,
+        *,
+        hoje: Callable[[], date] = hoje_sp,
     ) -> None:
         self._repositorio = repositorio
         self._repositorio_cliente = repositorio_cliente
         self._repositorio_item = repositorio_item
+        self._hoje = hoje
 
     # --- resolução --------------------------------------------------------
 
@@ -65,104 +73,137 @@ class ServicoPreco:
         item_ids: Sequence[uuid.UUID],
         data_referencia: date,
     ) -> ResolucaoDePrecos:
-        """Resolve o preço vigente de cada item na data informada.
-
-        ``data_referencia`` é a data do lançamento. Qualquer dia do mês resolve o
-        mesmo preço, porque a vigência é mensal.
-        """
-        mes = primeiro_dia_do_mes(data_referencia)
-        vigentes = self._repositorio.resolver_vigentes(cliente_id, item_ids, mes)
+        """Preço vigente de cada item na data do pedido."""
+        vigentes = self._repositorio.resolver_vigentes(cliente_id, item_ids, data_referencia)
 
         # preserva a ordem pedida, útil para mensagem de erro previsível
         sem_preco = tuple(item_id for item_id in dict.fromkeys(item_ids) if item_id not in vigentes)
         return ResolucaoDePrecos(vigentes=vigentes, sem_preco=sem_preco)
 
-    def resolver_um(
-        self, cliente_id: uuid.UUID, item_id: uuid.UUID, data_referencia: date
-    ) -> PrecoVigente | None:
-        """Atalho para um único item. Devolve ``None`` quando não há preço."""
-        return self.resolver(cliente_id, [item_id], data_referencia).vigentes.get(item_id)
+    def listar_na_data(
+        self, cliente_id: uuid.UUID, data: date, *, incluir_inativos: bool = False
+    ) -> list[tuple[Item, PrecoVigente | None]]:
+        """Itens do cliente com o preço vigente na data (``None`` = sem preço).
 
-    # --- consulta para a tela de preços -----------------------------------
-
-    def listar_do_mes(
-        self, cliente_id: uuid.UUID, mes: date, *, incluir_inativos: bool = False
-    ) -> list[tuple[uuid.UUID, str, PrecoVigente | None]]:
-        """Itens do cliente com o preço vigente naquele mês.
-
-        Devolve ``None`` no lugar do preço para item sem valor definido, para a
-        tela poder destacá-lo: item sem preço **bloqueia lançamento**, então o
-        operador precisa ver isso antes de tentar (Req 4.10).
+        Uma consulta de itens e uma de preços, qualquer que seja o tamanho do
+        catálogo.
         """
         self._exigir_cliente(cliente_id)
-        mes_normalizado = primeiro_dia_do_mes(mes)
-
         itens = self._repositorio_item.listar_por_cliente(
             cliente_id, incluir_inativos=incluir_inativos
         )
         vigentes = self._repositorio.resolver_vigentes(
-            cliente_id, [item.id for item in itens], mes_normalizado
+            cliente_id, [item.id for item in itens], data
         )
-        return [(item.id, item.nome, vigentes.get(item.id)) for item in itens]
+        return [(item, vigentes.get(item.id)) for item in itens]
+
+    def hoje(self) -> date:
+        """O "hoje" do serviço (para a camada de transporte montar a resposta)."""
+        return self._hoje()
+
+    def preco_atual(self, item_id: uuid.UUID) -> PrecoVigente | None:
+        """Preço que vale hoje para o item."""
+        item = self._exigir_item(item_id)
+        return self._repositorio.resolver_vigentes(item.cliente_id, [item.id], self._hoje()).get(
+            item.id
+        )
 
     # --- escrita ----------------------------------------------------------
 
-    def definir(
-        self,
-        cliente_id: uuid.UUID,
-        item_id: uuid.UUID,
-        vigencia_mes: date,
-        valor_unitario: Decimal,
-    ) -> Preco:
-        """Define ou atualiza o preço de um item para um mês.
+    def mudar_a_partir_de_hoje(self, item_id: uuid.UUID, valor_unitario: Decimal) -> Preco:
+        """Novo preço com início hoje (Req 1.2).
 
-        Repetir a mesma combinação (cliente, item, mês) é **atualização**, não
-        duplicata (Req 4.2). Permite mês futuro, para programar preço acordado com
-        antecedência, e mês passado, para corrigir erro de digitação (Req 4.14 e
-        4.17).
-
-        Correção de mês passado **não altera lançamentos já criados** — eles estão
-        congelados. Quem chama deve avisar isso ao operador (Req 4.18).
+        Se já existe preço com início hoje, ele é ajustado em vez de duplicado:
+        duas alterações no mesmo dia viram uma (Req 1.4). Também serve para o
+        primeiro preço de um item.
         """
-        self._exigir_cliente(cliente_id)
-        item = self._exigir_item_do_cliente(cliente_id, item_id)
-
+        item = self._exigir_item(item_id)
         valor = self._validar_valor(valor_unitario)
-        mes = primeiro_dia_do_mes(vigencia_mes)
+        hoje = self._hoje()
 
-        existente = self._repositorio.obter_do_mes(cliente_id, item.id, mes)
+        existente = self._repositorio.obter_no_dia(item.cliente_id, item.id, hoje)
         try:
             if existente is not None:
                 existente.valor_unitario = valor
                 self._repositorio.sincronizar()
                 return existente
-            return self._repositorio.inserir(cliente_id, item.id, mes, valor)
+            return self._repositorio.inserir(item.cliente_id, item.id, hoje, valor)
         except IntegrityError as erro:
             self._relancar_traduzido(erro)
 
-    def vigencia_sugerida(
-        self, cliente_id: uuid.UUID, item_id: uuid.UUID, hoje: date
-    ) -> SugestaoDeVigencia:
-        """Mês de vigência a sugerir na interface.
+    def corrigir_atual(self, item_id: uuid.UUID, valor_unitario: Decimal) -> Preco:
+        """Troca o valor do preço vigente hoje, desde o dia em que foi definido.
 
-        **Primeiro** preço de um item: mês corrente, senão o item recém-cadastrado
-        não poderia ser lançado hoje — cairia na regra de item sem preço.
-
-        **Alteração** de preço existente: mês seguinte, em coerência com a regra de
-        que alteração no meio do mês só passa a valer no mês seguinte.
-
-        (Req 4.15 e 4.16, decisão 18.)
+        Para erro de digitação (Req 1.11 e 1.12). Não cria histórico. Pedidos já
+        gravados não mudam; pedidos lançados depois, inclusive retroativos dentro
+        do período desse preço, usam o valor corrigido (Req 1.13).
         """
-        self._exigir_cliente(cliente_id)
-        self._exigir_item_do_cliente(cliente_id, item_id)
+        item = self._exigir_item(item_id)
+        valor = self._validar_valor(valor_unitario)
 
-        ja_tem_preco = self._repositorio.existe_algum(cliente_id, item_id)
-        return SugestaoDeVigencia(
-            vigencia_mes=mes_seguinte(hoje) if ja_tem_preco else primeiro_dia_do_mes(hoje),
-            e_primeiro_preco=not ja_tem_preco,
+        atual = self._repositorio.obter_vigente(item.cliente_id, item.id, self._hoje())
+        if atual is None:
+            raise ErroDeDominio(
+                CodigoErro.VALIDACAO,
+                "Este item ainda não tem preço para corrigir. Defina o preço primeiro.",
+                {"campos": ["modo"]},
+            )
+        try:
+            atual.valor_unitario = valor
+            self._repositorio.sincronizar()
+        except IntegrityError as erro:
+            self._relancar_traduzido(erro)
+        return atual
+
+    def alterar(self, item_id: uuid.UUID, valor_unitario: Decimal, modo: ModoDeAlteracao) -> Preco:
+        """Despacha para a operação do modo escolhido pelo operador."""
+        if modo is ModoDeAlteracao.CORRIGIR_ATUAL:
+            return self.corrigir_atual(item_id, valor_unitario)
+        return self.mudar_a_partir_de_hoje(item_id, valor_unitario)
+
+    # --- aviso antes de confirmar ------------------------------------------
+
+    def impacto(self, item_id: uuid.UUID, valor_unitario: Decimal, modo: ModoDeAlteracao) -> int:
+        """Quantos pedidos já gravados continuam com valor diferente do novo.
+
+        Intervalo afetado pela alteração:
+
+        - ``A_PARTIR_DE_HOJE``: de hoje até o próximo início posterior (se houver);
+        - ``CORRIGIR_ATUAL``: do início do preço atual até o próximo início. Se o
+          atual é o primeiro preço do item, sem limite inferior, porque o
+          primeiro preço vale também para datas anteriores.
+
+        Item sem preço: nada a manter, zero.
+        """
+        item = self._exigir_item(item_id)
+        cliente_id = item.cliente_id
+        valor = self._validar_valor(valor_unitario)
+        hoje = self._hoje()
+        inicios = self._repositorio.inicios(cliente_id, item.id)
+        if not inicios:
+            return 0
+
+        if modo is ModoDeAlteracao.CORRIGIR_ATUAL:
+            atual = self._repositorio.obter_vigente(cliente_id, item.id, hoje)
+            if atual is None:
+                return 0
+            inicio_atual = atual.vigencia_inicio
+            desde = None if inicio_atual == inicios[0] else inicio_atual
+            referencia = inicio_atual
+        else:
+            desde = hoje
+            referencia = hoje
+
+        ate = next((inicio for inicio in inicios if inicio > referencia), None)
+        return self._repositorio.contar_pedidos_afetados(
+            cliente_id, item.id, desde=desde, ate_exclusivo=ate, valor_diferente_de=valor
         )
 
     # --- validação --------------------------------------------------------
+
+    def validar_valor(self, valor: Decimal) -> Decimal:
+        """Valida sem gravar: permite checar o preço antes de criar o item."""
+        return self._validar_valor(valor)
 
     @staticmethod
     def _validar_valor(valor: Decimal) -> Decimal:
@@ -189,14 +230,15 @@ class ServicoPreco:
         if self._repositorio_cliente.obter_por_id(cliente_id) is None:
             raise nao_encontrado("Cliente")
 
-    def _exigir_item_do_cliente(self, cliente_id: uuid.UUID, item_id: uuid.UUID):  # noqa: ANN202
-        """Garante que o item existe E pertence ao cliente.
+    def _exigir_item(self, item_id: uuid.UUID) -> Item:
+        """Item existente. O cliente do preço é sempre o do item.
 
-        O banco também impede, pela chave estrangeira composta. Aqui a checagem
-        existe para devolver 404 com mensagem clara em vez de erro de constraint.
+        Derivar o cliente do item (em vez de recebê-lo) elimina por construção o
+        caso "preço de um cliente apontando para item de outro"; a FK composta
+        no banco continua como garantia final.
         """
         item = self._repositorio_item.obter_por_id(item_id)
-        if item is None or item.cliente_id != cliente_id:
+        if item is None:
             raise nao_encontrado("Item")
         return item
 
@@ -209,10 +251,10 @@ class ServicoPreco:
                 "O preço deve ser maior que zero.",
                 {"campos": ["valor_unitario"]},
             ) from erro
-        if constraint == CONSTRAINT_PRIMEIRO_DIA:
+        if constraint == CONSTRAINT_UNICA_POR_DIA:
+            # duas gravações simultâneas no mesmo dia: a outra venceu
             raise ErroDeDominio(
                 CodigoErro.VALIDACAO,
-                "A vigência do preço deve ser o primeiro dia do mês.",
-                {"campos": ["vigencia_mes"]},
+                "O preço deste item acabou de ser alterado. Atualize a tela e tente de novo.",
             ) from erro
         raise erro

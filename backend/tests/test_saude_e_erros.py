@@ -37,7 +37,7 @@ class TestEnvelopeDeErro:
 
         @app_isolado.get("/api/_erro_dominio")
         async def _rota_de_teste() -> None:
-            raise itens_sem_preco(["Roupão", "Tapete"], "setembro/2026")
+            raise itens_sem_preco(["Roupão", "Tapete"])
 
         resposta = TestClient(app_isolado, raise_server_exceptions=False).get("/api/_erro_dominio")
 

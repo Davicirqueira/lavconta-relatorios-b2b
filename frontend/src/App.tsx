@@ -9,7 +9,6 @@ import { PaginaLancamentoForm, PaginaLancamentos } from "@/pages/Lancamentos";
 import { PaginaRelatorio } from "@/pages/Relatorio";
 import { PaginaClientes } from "@/pages/Clientes";
 import { PaginaCatalogo } from "@/pages/Catalogo";
-import { PaginaPrecos } from "@/pages/Precos";
 import { ToastProvider } from "@/components/Toast";
 
 export function App() {
@@ -31,7 +30,8 @@ export function App() {
             <Route path="/relatorio" element={<PaginaRelatorio />} />
             <Route path="/clientes" element={<PaginaClientes />} />
             <Route path="/catalogo" element={<PaginaCatalogo />} />
-            <Route path="/precos" element={<PaginaPrecos />} />
+            {/* v1.1: o preço é definido no Catálogo; links antigos não dão 404 */}
+            <Route path="/precos" element={<Navigate to="/catalogo" replace />} />
           </Route>
         </Route>
 

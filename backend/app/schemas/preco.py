@@ -1,10 +1,15 @@
-"""Schemas de entrada e saída de Preço.
+"""Schemas de entrada e saída de Preço (v1.1).
 
 DINHEIRO COMO TEXTO NA SAÍDA
     Valor monetário serializa como string decimal (``"4.50"``), não como número.
     Motivo concreto: número em JSON vira ``double`` no JavaScript, e ponto
     flutuante binário não representa todo decimal exatamente. Trafegando texto, o
     frontend formata sem nunca converter para número.
+
+SEM DATA NA ENTRADA
+    A alteração de preço não tem campo de data: o início é sempre hoje, decidido
+    pela API (Req 1.2). ``extra="forbid"`` recusa explicitamente um corpo que
+    tente informar data, em vez de ignorá-la em silêncio.
 """
 
 import uuid
@@ -12,96 +17,84 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
-from app.core.datas import mes_como_texto, texto_para_mes
+from app.dominio import ModoDeAlteracao, PrecoVigente
 
 # Dinheiro na saída: sempre duas casas, como texto.
 DinheiroTexto = Annotated[Decimal, PlainSerializer(lambda valor: f"{valor:.2f}", return_type=str)]
 
-# Mês na saída: "YYYY-MM".
-MesTexto = Annotated[date, PlainSerializer(mes_como_texto, return_type=str)]
-
-
-class PrecoEntrada(BaseModel):
-    """Corpo para definir ou atualizar o preço de um item.
-
-    Repetir a mesma combinação (item, mês) é atualização, não duplicata.
-    """
-
-    item_id: uuid.UUID
-    vigencia_mes: str = Field(
-        description="Mês de início da vigência, no formato YYYY-MM.",
-        examples=["2026-10"],
-    )
-    valor_unitario: Decimal = Field(
+ValorDePreco = Annotated[
+    Decimal,
+    Field(
         gt=0,
         max_digits=10,
         decimal_places=2,
         description="Preço por peça, com no máximo duas casas decimais.",
         examples=["4.50"],
+    ),
+]
+
+
+class AlteracaoDePreco(BaseModel):
+    """Corpo para mudar ou corrigir o preço de um item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    valor_unitario: ValorDePreco
+    modo: ModoDeAlteracao = Field(
+        default=ModoDeAlteracao.A_PARTIR_DE_HOJE,
+        description=(
+            "`a_partir_de_hoje`: o novo preço vale para pedidos de hoje em diante. "
+            "`corrigir_atual`: troca o valor do preço atual desde o dia em que foi "
+            "definido (erro de digitação). Pedidos já registrados não mudam em "
+            "nenhum dos dois."
+        ),
     )
 
-    @field_validator("vigencia_mes")
-    @classmethod
-    def _validar_formato_do_mes(cls, valor: str) -> str:
-        # converte para validar; o serviço faz a conversão definitiva
-        texto_para_mes(valor)
-        return valor
 
-    @property
-    def mes(self) -> date:
-        return texto_para_mes(self.vigencia_mes)
+class PrecoAtual(BaseModel):
+    """Preço que vale hoje para um item."""
+
+    valor_unitario: DinheiroTexto
+    desde: date = Field(description="Dia em que este preço começou a valer.")
+    e_hoje: bool = Field(
+        description="Verdadeiro quando o preço começou hoje: mudar e corrigir têm o mesmo efeito."
+    )
+
+    @classmethod
+    def de(cls, vigente: PrecoVigente | None, hoje: date) -> "PrecoAtual | None":
+        if vigente is None:
+            return None
+        return cls(
+            valor_unitario=vigente.valor_unitario,
+            desde=vigente.desde,
+            e_hoje=vigente.desde == hoje,
+        )
+
+
+class ImpactoDaAlteracao(BaseModel):
+    """Aviso antes de confirmar uma alteração (Req 1.6 e 1.13)."""
+
+    pedidos_com_valor_anterior: int = Field(
+        description="Pedidos já registrados que continuam com o valor anterior."
+    )
 
 
 class ItemComPreco(BaseModel):
-    """Um item do catálogo e seu preço vigente no mês consultado."""
-
-    model_config = ConfigDict(from_attributes=True)
+    """Um item do catálogo e o preço que vale na data consultada."""
 
     item_id: uuid.UUID
     nome: str
     valor_unitario: DinheiroTexto | None = Field(
-        description="Preço vigente no mês. Nulo quando não há preço definido."
+        description="Preço por peça na data. Nulo quando o item ainda não tem preço."
     )
-    vigencia_origem: MesTexto | None = Field(
-        description=(
-            "Mês em que este preço foi definido. Pode ser anterior ao consultado, "
-            "porque a vigência se propaga até que um novo preço exista."
-        )
-    )
-    sem_preco: bool = Field(
-        description="Verdadeiro quando não há preço definido até o mês consultado. "
-        "Item sem preço bloqueia lançamento."
-    )
+    desde: date | None = Field(description="Dia em que o preço aplicado começou a valer.")
+    sem_preco: bool = Field(description="Item sem nenhum preço. Impede salvar o pedido.")
 
 
-class PrecosDoMes(BaseModel):
-    """Tabela de preços de um cliente para um mês."""
+class PrecosNaData(BaseModel):
+    """Preços dos itens de um cliente numa data (usado pelo formulário de pedido)."""
 
-    mes: MesTexto
+    data: date
     itens: list[ItemComPreco]
-
-
-class PrecoResposta(BaseModel):
-    """Preço como a API o devolve após definir ou atualizar."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    cliente_id: uuid.UUID
-    item_id: uuid.UUID
-    vigencia_mes: MesTexto
-    valor_unitario: DinheiroTexto
-
-
-class VigenciaSugerida(BaseModel):
-    """Mês que a interface deve propor ao definir preço.
-
-    Primeiro preço de um item: mês corrente, para que ele possa ser lançado hoje.
-    Alteração de preço existente: mês seguinte, porque alteração no meio do mês só
-    passa a valer no mês seguinte.
-    """
-
-    vigencia_mes: MesTexto
-    e_primeiro_preco: bool

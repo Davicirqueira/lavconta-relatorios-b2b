@@ -1,0 +1,106 @@
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Escolha "mudar a partir de hoje" / "corrigir o preço atual" */
+.modos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.modosTitulo {
+  margin-bottom: 2px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gelo-700);
+}
+
+.modo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--gelo-300);
+  border-radius: var(--raio-md);
+  background: var(--branco);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-rapida),
+    background-color var(--dur-rapida);
+}
+
+.modo:hover {
+  border-color: var(--azul-300);
+}
+
+.modo:has(input:checked) {
+  border-color: var(--azul-600);
+  background: var(--azul-50);
+}
+
+.modo:has(input:focus-visible) {
+  box-shadow: var(--sombra-foco);
+}
+
+.modo input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--azul-600);
+  cursor: pointer;
+}
+
+.modoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modoNome {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gelo-800);
+}
+
+.modoDescricao {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--gelo-600);
+}
+
+/* Aviso antes de confirmar: pedidos já registrados que não mudam */
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--alerta-suave);
+  border: 1px solid var(--alerta-borda);
+  border-radius: var(--raio-md);
+  color: var(--alerta-forte);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.aviso svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.erroGeral {
+  padding: 12px 14px;
+  background: var(--erro-suave);
+  border: 1px solid var(--erro-borda);
+  border-radius: var(--raio-md);
+  color: var(--erro-forte);
+  font-size: 13px;
+  line-height: 1.5;
+}

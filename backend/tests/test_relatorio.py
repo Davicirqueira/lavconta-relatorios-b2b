@@ -450,3 +450,99 @@ class TestValidacoes:
             servico.gerar(uuid.uuid4(), SETEMBRO_INICIO, SETEMBRO_FIM)
 
         assert capturado.value.codigo == CodigoErro.NAO_ENCONTRADO
+
+
+# ---------------------------------------------------------------------------
+# v1.1 — resumo por item e relatório geral (Req 5 e 6.4)
+# ---------------------------------------------------------------------------
+
+
+class TestResumoPorItem:
+    def test_item_a_dois_valores_sai_em_duas_linhas(
+        self, servico: ServicoRelatorio, fechamento: RepositorioFechamentoFalso, cliente_id
+    ) -> None:  # noqa: ANN001
+        semear_lancamento(
+            fechamento, date(2026, 9, 10), {LENCOL: (40, "4.50"), FRONHA: (10, "3.50")}
+        )
+        semear_lancamento(fechamento, date(2026, 9, 20), {LENCOL: (20, "4.80")})
+        semear_lancamento(fechamento, date(2026, 9, 21), {LENCOL: (5, "4.80")})
+
+        relatorio = servico.gerar(cliente_id, SETEMBRO_INICIO, SETEMBRO_FIM)
+
+        assert [
+            (linha.item_nome, linha.valor_unitario, linha.quantidade, linha.subtotal)
+            for linha in relatorio.resumo_por_item
+        ] == [
+            ("Fronha", Decimal("3.50"), 10, Decimal("35.00")),
+            ("Lençol", Decimal("4.50"), 40, Decimal("180.00")),
+            ("Lençol", Decimal("4.80"), 25, Decimal("120.00")),
+        ]
+
+    def test_soma_do_resumo_bate_com_os_totais(
+        self, servico: ServicoRelatorio, fechamento: RepositorioFechamentoFalso, cliente_id
+    ) -> None:  # noqa: ANN001
+        semear_lancamento(
+            fechamento, date(2026, 9, 10), {LENCOL: (40, "4.50"), ROUPAO: (3, "9.00")}
+        )
+        semear_lancamento(
+            fechamento, date(2026, 9, 20), {LENCOL: (7, "4.80"), TOALHA: (12, "5.50")}
+        )
+
+        relatorio = servico.gerar(cliente_id, SETEMBRO_INICIO, SETEMBRO_FIM)
+
+        assert (
+            sum(linha.quantidade for linha in relatorio.resumo_por_item)
+            == relatorio.totais.total_pecas
+        )
+        assert (
+            sum((linha.subtotal for linha in relatorio.resumo_por_item), Decimal("0"))
+            == relatorio.totais.total_valor
+        )
+
+
+class TestRelatorioGeral:
+    def test_uma_secao_por_cliente_em_ordem_alfabetica_sem_acento(
+        self, servico: ServicoRelatorio, fechamento: RepositorioFechamentoFalso
+    ) -> None:
+        fechamento.semear_geral("Restaurante Bom Prato", "Guardanapo", "1.20", 100)
+        fechamento.semear_geral("Clínica São Lucas", "Lençol", "4.20", 30)
+        fechamento.semear_geral("Hotel Aurora", "Lençol", "4.50", 40)
+
+        geral = servico.gerar_geral(SETEMBRO_INICIO, SETEMBRO_FIM)
+
+        assert [s.cliente_nome for s in geral.secoes] == [
+            "Clínica São Lucas",
+            "Hotel Aurora",
+            "Restaurante Bom Prato",
+        ]
+
+    def test_totais_da_secao_e_total_geral(
+        self, servico: ServicoRelatorio, fechamento: RepositorioFechamentoFalso
+    ) -> None:
+        fechamento.semear_geral("Hotel Aurora", "Lençol", "4.50", 40)  # 180,00
+        fechamento.semear_geral("Hotel Aurora", "Lençol", "4.80", 25)  # 120,00
+        fechamento.semear_geral("Hotel Aurora", "Fronha", "3.50", 10)  # 35,00
+        fechamento.semear_geral("Clínica São Lucas", "Avental", "4.00", 5)  # 20,00
+
+        geral = servico.gerar_geral(SETEMBRO_INICIO, SETEMBRO_FIM)
+        aurora = next(s for s in geral.secoes if s.cliente_nome == "Hotel Aurora")
+
+        assert [(linha.item_nome, linha.valor_unitario) for linha in aurora.linhas] == [
+            ("Fronha", Decimal("3.50")),
+            ("Lençol", Decimal("4.50")),
+            ("Lençol", Decimal("4.80")),
+        ]
+        assert (aurora.total_pecas, aurora.total_valor) == (75, Decimal("335.00"))
+        assert (geral.total_pecas, geral.total_valor) == (80, Decimal("355.00"))
+
+    def test_periodo_sem_pedidos_fica_vazio(self, servico: ServicoRelatorio) -> None:
+        geral = servico.gerar_geral(SETEMBRO_INICIO, SETEMBRO_FIM)
+
+        assert geral.vazio
+        assert (geral.total_pecas, geral.total_valor) == (0, Decimal("0.00"))
+
+    def test_periodo_invertido_e_recusado(self, servico: ServicoRelatorio) -> None:
+        with pytest.raises(ErroDeDominio) as erro:
+            servico.gerar_geral(SETEMBRO_FIM, SETEMBRO_INICIO)
+
+        assert erro.value.codigo == CodigoErro.PERIODO_INVALIDO

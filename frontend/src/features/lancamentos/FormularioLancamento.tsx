@@ -10,7 +10,7 @@
  * O QUE O FORMULÁRIO NÃO FAZ
  *   Não calcula preço nem total. O preço por peça exibido vem da API:
  *     - item no pedido → valor da prévia (respeita o congelado na edição);
- *     - item fora do pedido → preço vigente no mês da data (tela de preços).
+ *     - item fora do pedido → preço do item na data do pedido (definido no Catálogo).
  *   Totais vêm da prévia; no salvamento o servidor congela de novo e é a
  *   fonte final. O navegador nunca envia valor.
  *
@@ -29,9 +29,8 @@ import { Selecao } from "@/components/Selecao";
 import { SkeletonTabela } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 import { useClientes } from "@/features/clientes/hooks";
-import { useItens } from "@/features/catalogo/hooks";
-import { usePrecosDoMes } from "@/features/precos/hooks";
-import { diasNoMes, hojeSp, mesExtenso } from "@/lib/datas";
+import { useItens, usePrecosNaData } from "@/features/catalogo/hooks";
+import { diasNoMes, hojeSp } from "@/lib/datas";
 import { formatarMoeda } from "@/lib/dinheiro";
 import type { LancamentoEntrada, LinhaPrevia } from "@/types/api";
 import { useCriarLancamento, useEditarLancamento, useLancamento } from "./hooks";
@@ -86,9 +85,9 @@ export function FormularioLancamento() {
   const { data: clientes } = useClientes(true);
   // Catálogo completo (com inativos): a alternância só filtra o que é exibido
   const catalogo = useItens(clienteId, true);
-  // Preço vigente no mês da data; com data incompleta, usa o mês corrente
-  const mesReferencia = (data || hoje).slice(0, 7);
-  const precosDoMes = usePrecosDoMes(clienteId, mesReferencia, true);
+  // Preço de cada item na data do pedido; com data incompleta, usa hoje
+  const dataDosPrecos = /^\d{4}-\d{2}-\d{2}$/.test(data) ? data : hoje;
+  const precosNaData = usePrecosNaData(clienteId, dataDosPrecos, true);
   const criar = useCriarLancamento();
   const editar = useEditarLancamento();
 
@@ -116,9 +115,9 @@ export function FormularioLancamento() {
     return mapa;
   }, [previa.resultado]);
 
-  const precoDoMesPorItem = useMemo(
-    () => new Map((precosDoMes.data?.itens ?? []).map((p) => [p.item_id, p])),
-    [precosDoMes.data],
+  const precoNaDataPorItem = useMemo(
+    () => new Map((precosNaData.data?.itens ?? []).map((p) => [p.item_id, p])),
+    [precosNaData.data],
   );
 
   // Sem preço: avisado pela prévia (antes de salvar) ou pela recusa do salvamento
@@ -290,12 +289,6 @@ export function FormularioLancamento() {
         <div className={styles.itensTopo}>
           <h2 id="titulo-itens" className={styles.cartaoTitulo}>
             Peças do pedido
-            {data && (
-              <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
-                {" "}
-                · preços de {mesExtenso(mesReferencia)}
-              </span>
-            )}
           </h2>
           {clienteId && itens.length > 0 && (
             <div className={styles.itensControles}>
@@ -336,11 +329,12 @@ export function FormularioLancamento() {
               const quantidade = quantidades[item.id] ?? "";
               const noPedido = Number(quantidade) > 0;
               const linhaPrevia = noPedido ? linhaPreviaPorItem.get(item.id) : undefined;
-              const precoMes = precoDoMesPorItem.get(item.id);
+              const precoNaData = precoNaDataPorItem.get(item.id);
               const semPreco = noPedido
                 ? semPrecoNoPedido.has(item.id)
-                : !!precoMes?.sem_preco;
-              const valorUnitario = linhaPrevia?.valor_unitario ?? precoMes?.valor_unitario ?? null;
+                : !!precoNaData?.sem_preco;
+              const valorUnitario =
+                linhaPrevia?.valor_unitario ?? precoNaData?.valor_unitario ?? null;
 
               return (
                 <li
@@ -364,7 +358,7 @@ export function FormularioLancamento() {
                     </span>
                     {semPreco ? (
                       <span className={styles.semPreco}>
-                        <AlertTriangle size={12} aria-hidden="true" /> Sem preço neste mês
+                        <AlertTriangle size={12} aria-hidden="true" /> Sem preço
                       </span>
                     ) : (
                       <span className={styles.itemPreco}>
@@ -424,7 +418,8 @@ export function FormularioLancamento() {
 
                   {noPedido && semPreco && (
                     <span className={styles.mensagemItem}>
-                      Sem preço para o mês desta data. Defina o preço em Preços antes de salvar.
+                      Este item ainda não tem preço. Defina o preço no{" "}
+                      <Link to="/catalogo">Catálogo</Link> para salvar o pedido.
                     </span>
                   )}
                 </li>

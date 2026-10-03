@@ -1,11 +1,14 @@
-"""Testes da resolução de preço vigente (tarefa 17).
+"""Testes da regra de preço por data (v1.1, Req 1).
 
 Esta é a regra mais consequente do produto: dela sai o valor que será congelado no
-lançamento e cobrado do cliente. Um erro aqui produz fatura errada sem que nada
+pedido e cobrado do cliente. Um erro aqui produz fatura errada sem que nada
 pareça quebrado.
 
-Rodam SEM banco, contra repositórios em memória. A equivalência entre a consulta
-SQL e a versão em memória é verificada pelos testes de API, que usam Postgres.
+Rodam SEM banco, contra repositórios em memória. A mesma regra na consulta SQL é
+verificada contra Postgres em ``test_api_precos.py``.
+
+O relógio do serviço é fixado em cada teste (``hoje=``), para que véspera, dia e
+dia seguinte de uma alteração sejam provados sem depender da data real.
 """
 
 import uuid
@@ -15,12 +18,15 @@ from decimal import Decimal
 import pytest
 
 from app.core.erros import CodigoErro, ErroDeDominio
+from app.dominio import ModoDeAlteracao
 from app.services.servico_preco import ServicoPreco
 from tests.repositorios_falsos import (
     RepositorioClienteFalso,
     RepositorioItemFalso,
     RepositorioPrecoFalso,
 )
+
+DIA_DA_TROCA = date(2026, 9, 10)
 
 
 @pytest.fixture
@@ -39,12 +45,17 @@ def repositorio() -> RepositorioPrecoFalso:
 
 
 @pytest.fixture
-def servico(
+def em(
     repositorio: RepositorioPrecoFalso,
     repositorio_cliente: RepositorioClienteFalso,
     repositorio_item: RepositorioItemFalso,
-) -> ServicoPreco:
-    return ServicoPreco(repositorio, repositorio_cliente, repositorio_item)
+):  # noqa: ANN201
+    """Serviço com o relógio fixado no dia informado: ``em(date(...)).metodo(...)``."""
+
+    def _servico(dia: date) -> ServicoPreco:
+        return ServicoPreco(repositorio, repositorio_cliente, repositorio_item, hoje=lambda: dia)
+
+    return _servico
 
 
 @pytest.fixture
@@ -62,427 +73,287 @@ def fronha(repositorio_item: RepositorioItemFalso, cliente_id: uuid.UUID) -> uui
     return repositorio_item.semear(cliente_id, "Fronha").id
 
 
-class TestPropagacaoDaVigencia:
-    """Req 4.4 — o preço vale do mês definido em diante, até que outro exista."""
+def _valor(servico: ServicoPreco, cliente_id: uuid.UUID, item_id: uuid.UUID, dia: date) -> Decimal:
+    vigente = servico.resolver(cliente_id, [item_id], dia).vigentes.get(item_id)
+    assert vigente is not None, f"sem preço em {dia}"
+    return vigente.valor_unitario
 
-    def test_vale_no_proprio_mes(
+
+class TestResolucaoPorData:
+    """Req 1.1 e 1.3 — o preço vale do dia de início até a próxima alteração."""
+
+    @pytest.fixture(autouse=True)
+    def _historico(self, em, cliente_id: uuid.UUID, lencol: uuid.UUID) -> None:  # noqa: ANN001
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        em(DIA_DA_TROCA).mudar_a_partir_de_hoje(lencol, Decimal("4.80"))
+
+    def test_vespera_da_troca_usa_o_preco_antigo(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        assert _valor(em(DIA_DA_TROCA), cliente_id, lencol, date(2026, 9, 9)) == Decimal("4.50")
+
+    def test_dia_da_troca_usa_o_preco_novo(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        assert _valor(em(DIA_DA_TROCA), cliente_id, lencol, DIA_DA_TROCA) == Decimal("4.80")
+
+    def test_dia_seguinte_usa_o_preco_novo(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        assert _valor(em(DIA_DA_TROCA), cliente_id, lencol, date(2026, 9, 11)) == Decimal("4.80")
+
+    def test_preco_persiste_na_virada_do_mes_e_do_ano(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        servico = em(DIA_DA_TROCA)
+        assert _valor(servico, cliente_id, lencol, date(2026, 10, 1)) == Decimal("4.80")
+        assert _valor(servico, cliente_id, lencol, date(2027, 3, 20)) == Decimal("4.80")
+
+    def test_pedido_retroativo_usa_o_preco_da_data_do_pedido(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        # alteração no dia 10; pedido do dia 5 lançado no dia 12
+        servico = em(date(2026, 9, 12))
+        assert _valor(servico, cliente_id, lencol, date(2026, 9, 5)) == Decimal("4.50")
+
+    def test_informa_desde_quando_o_preco_vale(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        vigente = (
+            em(DIA_DA_TROCA).resolver(cliente_id, [lencol], date(2026, 9, 20)).vigentes[lencol]
+        )
+        assert vigente.desde == DIA_DA_TROCA
+
+
+class TestPrimeiroPrecoValeParaTras:
+    """Req 1.7 — item novo pode entrar em pedido retroativo."""
+
+    def test_primeiro_preco_vale_para_data_anterior_ao_cadastro(
         self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
+        em,  # noqa: ANN001
         cliente_id: uuid.UUID,
         lencol: uuid.UUID,
     ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
+        em(date(2026, 10, 2)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
 
-        vigente = servico.resolver_um(cliente_id, lencol, date(2026, 6, 15))
+        assert _valor(em(date(2026, 10, 2)), cliente_id, lencol, date(2026, 9, 1)) == Decimal(
+            "4.50"
+        )
 
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("4.50")
-        assert vigente.vigencia_origem == date(2026, 6, 1)
-
-    @pytest.mark.parametrize(
-        "data_consulta",
-        [date(2026, 7, 1), date(2026, 9, 15), date(2026, 12, 31), date(2027, 3, 10)],
-    )
-    def test_propaga_para_meses_seguintes(
+    def test_so_o_primeiro_vale_para_tras_nao_o_mais_recente(
         self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-        data_consulta: date,
-    ) -> None:
-        """Sem redigitação na virada do mês, inclusive atravessando o ano."""
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
-
-        vigente = servico.resolver_um(cliente_id, lencol, data_consulta)
-
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("4.50")
-        assert vigente.vigencia_origem == date(2026, 6, 1)
-
-    def test_mes_com_vigencia_propria_sobrepoe(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
+        em,  # noqa: ANN001
         cliente_id: uuid.UUID,
         lencol: uuid.UUID,
     ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
-        repositorio.semear(cliente_id, lencol, date(2026, 10, 1), "4.80")
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        em(date(2026, 9, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.80"))
 
-        setembro = servico.resolver_um(cliente_id, lencol, date(2026, 9, 30))
-        outubro = servico.resolver_um(cliente_id, lencol, date(2026, 10, 1))
-
-        assert setembro is not None and setembro.valor_unitario == Decimal("4.50")
-        assert outubro is not None and outubro.valor_unitario == Decimal("4.80")
-
-    def test_vence_o_mais_recente_entre_varios(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        for mes, valor in ((1, "3.00"), (4, "3.50"), (8, "4.00")):
-            repositorio.semear(cliente_id, lencol, date(2026, mes, 1), valor)
-
-        vigente = servico.resolver_um(cliente_id, lencol, date(2026, 6, 10))
-
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("3.50")
-        assert vigente.vigencia_origem == date(2026, 4, 1)
-
-    def test_preco_futuro_nao_vale_antes_da_vigencia(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        """Preço programado para novembro não afeta setembro (Req 4.14)."""
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
-        repositorio.semear(cliente_id, lencol, date(2026, 11, 1), "5.20")
-
-        vigente = servico.resolver_um(cliente_id, lencol, date(2026, 9, 1))
-
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("4.50")
-
-
-class TestFronteirasDoMes:
-    """Qualquer dia do mês resolve o mesmo preço — a vigência é mensal."""
-
-    @pytest.mark.parametrize("dia", [1, 2, 15, 28, 30])
-    def test_todos_os_dias_do_mes_resolvem_igual(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-        dia: int,
-    ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 9, 1), "4.75")
-
-        vigente = servico.resolver_um(cliente_id, lencol, date(2026, 9, dia))
-
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("4.75")
-
-    def test_ultimo_dia_do_mes_nao_pega_o_mes_seguinte(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        """A fronteira mais perigosa: 31/08 deve usar agosto, não setembro."""
-        repositorio.semear(cliente_id, lencol, date(2026, 8, 1), "4.00")
-        repositorio.semear(cliente_id, lencol, date(2026, 9, 1), "4.60")
-
-        ultimo_de_agosto = servico.resolver_um(cliente_id, lencol, date(2026, 8, 31))
-        primeiro_de_setembro = servico.resolver_um(cliente_id, lencol, date(2026, 9, 1))
-
-        assert ultimo_de_agosto is not None
-        assert ultimo_de_agosto.valor_unitario == Decimal("4.00")
-        assert primeiro_de_setembro is not None
-        assert primeiro_de_setembro.valor_unitario == Decimal("4.60")
-
-    def test_virada_de_ano(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 12, 1), "5.00")
-        repositorio.semear(cliente_id, lencol, date(2027, 1, 1), "5.50")
-
-        dezembro = servico.resolver_um(cliente_id, lencol, date(2026, 12, 31))
-        janeiro = servico.resolver_um(cliente_id, lencol, date(2027, 1, 1))
-
-        assert dezembro is not None and dezembro.valor_unitario == Decimal("5.00")
-        assert janeiro is not None and janeiro.valor_unitario == Decimal("5.50")
-
-
-class TestLancamentoRetroativo:
-    """Req 4.7 — resolve pela data do pedido, nunca pela data corrente."""
-
-    def test_usa_o_preco_do_mes_do_pedido(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        """Pedido de agosto registrado em outubro recebe o preço de agosto."""
-        repositorio.semear(cliente_id, lencol, date(2026, 8, 1), "4.00")
-        repositorio.semear(cliente_id, lencol, date(2026, 10, 1), "4.80")
-
-        vigente = servico.resolver_um(cliente_id, lencol, date(2026, 8, 28))
-
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("4.00")
-
-    def test_sem_preco_anterior_ao_pedido(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        """Pedido de maio, primeiro preço em junho: não há valor aplicável."""
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
-
-        resolucao = servico.resolver(cliente_id, [lencol], date(2026, 5, 10))
-
-        assert resolucao.vigentes == {}
-        assert resolucao.sem_preco == (lencol,)
-        assert resolucao.completa is False
+        # antes de junho: o primeiro (4.50), não o mais recente (4.80)
+        assert _valor(em(date(2026, 9, 1)), cliente_id, lencol, date(2026, 1, 15)) == Decimal(
+            "4.50"
+        )
 
 
 class TestItemSemPreco:
-    """Req 4.8 — ausência é reportada, nunca tratada como zero."""
+    """Só fica sem preço o item que nunca teve nenhum."""
 
-    def test_item_sem_nenhum_preco(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID
-    ) -> None:
-        resolucao = servico.resolver(cliente_id, [lencol], date(2026, 9, 1))
+    def test_item_sem_nenhum_preco(self, em, cliente_id, lencol) -> None:  # noqa: ANN001
+        resolucao = em(date(2026, 9, 1)).resolver(cliente_id, [lencol], date(2026, 9, 1))
 
+        assert resolucao.vigentes == {}
         assert resolucao.sem_preco == (lencol,)
-        assert lencol not in resolucao.vigentes
 
-    def test_separa_resolvidos_de_faltantes(
+    def test_separa_resolvidos_de_sem_preco_na_ordem_pedida(
         self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
+        em,  # noqa: ANN001
         cliente_id: uuid.UUID,
         lencol: uuid.UUID,
         fronha: uuid.UUID,
     ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
 
-        resolucao = servico.resolver(cliente_id, [lencol, fronha], date(2026, 9, 1))
+        resolucao = em(date(2026, 9, 1)).resolver(cliente_id, [fronha, lencol], date(2026, 9, 1))
 
         assert set(resolucao.vigentes) == {lencol}
         assert resolucao.sem_preco == (fronha,)
 
-    def test_preserva_a_ordem_pedida_nos_faltantes(
-        self,
-        servico: ServicoPreco,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-        fronha: uuid.UUID,
-    ) -> None:
-        """Ordem previsível torna a mensagem de erro estável."""
-        resolucao = servico.resolver(cliente_id, [fronha, lencol], date(2026, 9, 1))
-
-        assert resolucao.sem_preco == (fronha, lencol)
-
-    def test_lista_vazia_de_itens(self, servico: ServicoPreco, cliente_id: uuid.UUID) -> None:
-        resolucao = servico.resolver(cliente_id, [], date(2026, 9, 1))
-
-        assert resolucao.vigentes == {}
-        assert resolucao.sem_preco == ()
-        assert resolucao.completa is True
+    def test_lista_vazia(self, em, cliente_id) -> None:  # noqa: ANN001
+        resolucao = em(date(2026, 9, 1)).resolver(cliente_id, [], date(2026, 9, 1))
+        assert resolucao.completa
 
 
 class TestIsolamentoEntreClientes:
     def test_preco_de_um_cliente_nao_vale_para_outro(
         self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
+        em,  # noqa: ANN001
         repositorio_cliente: RepositorioClienteFalso,
         repositorio_item: RepositorioItemFalso,
-        cliente_id: uuid.UUID,
         lencol: uuid.UUID,
     ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
-        outro = repositorio_cliente.semear("Pousada Vista Verde").id
-        lencol_da_pousada = repositorio_item.semear(outro, "Lençol").id
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        outro = repositorio_cliente.semear("Clínica São Lucas").id
+        lencol_outro = repositorio_item.semear(outro, "Lençol").id
 
-        resolucao = servico.resolver(outro, [lencol_da_pousada], date(2026, 9, 1))
+        resolucao = em(date(2026, 9, 1)).resolver(outro, [lencol_outro], date(2026, 9, 1))
 
-        assert resolucao.sem_preco == (lencol_da_pousada,)
+        assert resolucao.sem_preco == (lencol_outro,)
 
 
-class TestDefinicaoDePreco:
-    def test_define_primeiro_preco(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID
-    ) -> None:
-        preco = servico.definir(cliente_id, lencol, date(2026, 6, 1), Decimal("4.50"))
+class TestMudarAPartirDeHoje:
+    """Req 1.2 e 1.4."""
 
-        assert preco.valor_unitario == Decimal("4.50")
-        assert preco.vigencia_mes == date(2026, 6, 1)
+    def test_inicio_e_hoje_do_relogio_do_servico(self, em, lencol) -> None:  # noqa: ANN001
+        preco = em(date(2026, 9, 17)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        assert preco.vigencia_inicio == date(2026, 9, 17)
 
-    def test_normaliza_a_vigencia_para_o_dia_primeiro(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID
-    ) -> None:
-        """Qualquer dia informado vira o dia 1 (o banco exige isso)."""
-        preco = servico.definir(cliente_id, lencol, date(2026, 6, 23), Decimal("4.50"))
-
-        assert preco.vigencia_mes == date(2026, 6, 1)
-
-    def test_repetir_o_mesmo_mes_atualiza(
+    def test_duas_mudancas_no_mesmo_dia_viram_uma(
         self,
-        servico: ServicoPreco,
+        em,  # noqa: ANN001
         repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
         lencol: uuid.UUID,
     ) -> None:
-        """Req 4.2 — não cria duplicata."""
-        servico.definir(cliente_id, lencol, date(2026, 6, 1), Decimal("4.50"))
-        servico.definir(cliente_id, lencol, date(2026, 6, 1), Decimal("5.00"))
+        servico = em(date(2026, 9, 17))
+        primeiro = servico.mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        segundo = servico.mudar_a_partir_de_hoje(lencol, Decimal("4.70"))
 
+        assert segundo is primeiro
         assert len(repositorio.registros) == 1
-        vigente = servico.resolver_um(cliente_id, lencol, date(2026, 6, 1))
-        assert vigente is not None
-        assert vigente.valor_unitario == Decimal("5.00")
+        assert segundo.valor_unitario == Decimal("4.70")
 
-    def test_normaliza_para_duas_casas(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID
-    ) -> None:
-        preco = servico.definir(cliente_id, lencol, date(2026, 6, 1), Decimal("4.5"))
-
-        assert preco.valor_unitario == Decimal("4.50")
-
-    @pytest.mark.parametrize("valor", ["0", "-1.00", "-0.01"])
-    def test_recusa_valor_nao_positivo(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID, valor: str
-    ) -> None:
-        with pytest.raises(ErroDeDominio) as excecao:
-            servico.definir(cliente_id, lencol, date(2026, 6, 1), Decimal(valor))
-
-        assert excecao.value.codigo == CodigoErro.VALIDACAO
-        assert excecao.value.detalhes["campos"] == ["valor_unitario"]
-
-    @pytest.mark.parametrize("valor", ["4.555", "0.001", "1.2345"])
-    def test_recusa_mais_de_duas_casas(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID, valor: str
-    ) -> None:
-        """Req 4.13 — sem fração de centavo."""
-        with pytest.raises(ErroDeDominio) as excecao:
-            servico.definir(cliente_id, lencol, date(2026, 6, 1), Decimal(valor))
-
-        assert "duas casas" in excecao.value.mensagem
-
-    def test_permite_corrigir_mes_passado(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID
-    ) -> None:
-        """Req 4.17 — correção de erro de digitação é permitida."""
-        servico.definir(cliente_id, lencol, date(2026, 1, 1), Decimal("2.05"))
-
-        corrigido = servico.definir(cliente_id, lencol, date(2026, 1, 1), Decimal("2.50"))
-
-        assert corrigido.valor_unitario == Decimal("2.50")
-
-    def test_recusa_item_de_outro_cliente(
+    def test_mudanca_em_outro_dia_cria_historico(
         self,
-        servico: ServicoPreco,
-        repositorio_cliente: RepositorioClienteFalso,
-        repositorio_item: RepositorioItemFalso,
-        cliente_id: uuid.UUID,
+        em,  # noqa: ANN001
+        repositorio: RepositorioPrecoFalso,
+        lencol: uuid.UUID,
     ) -> None:
-        outro = repositorio_cliente.semear("Pousada Vista Verde").id
-        item_do_outro = repositorio_item.semear(outro, "Toalha").id
+        em(date(2026, 9, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        em(date(2026, 9, 17)).mudar_a_partir_de_hoje(lencol, Decimal("4.80"))
 
-        with pytest.raises(ErroDeDominio) as excecao:
-            servico.definir(cliente_id, item_do_outro, date(2026, 6, 1), Decimal("4.50"))
+        assert len(repositorio.registros) == 2
 
-        assert excecao.value.codigo == CodigoErro.NAO_ENCONTRADO
+    def test_normaliza_para_duas_casas(self, em, lencol) -> None:  # noqa: ANN001
+        preco = em(date(2026, 9, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.5"))
+        assert str(preco.valor_unitario) == "4.50"
 
-    def test_recusa_cliente_inexistente(self, servico: ServicoPreco, lencol: uuid.UUID) -> None:
-        with pytest.raises(ErroDeDominio) as excecao:
-            servico.definir(uuid.uuid4(), lencol, date(2026, 6, 1), Decimal("4.50"))
+    @pytest.mark.parametrize("valor", ["0", "-1", "4.555"])
+    def test_recusa_valor_invalido(self, em, lencol, valor: str) -> None:  # noqa: ANN001
+        with pytest.raises(ErroDeDominio) as erro:
+            em(date(2026, 9, 1)).mudar_a_partir_de_hoje(lencol, Decimal(valor))
+        assert erro.value.codigo is CodigoErro.VALIDACAO
 
-        assert excecao.value.codigo == CodigoErro.NAO_ENCONTRADO
+    def test_item_inexistente(self, em) -> None:  # noqa: ANN001
+        with pytest.raises(ErroDeDominio) as erro:
+            em(date(2026, 9, 1)).mudar_a_partir_de_hoje(uuid.uuid4(), Decimal("4.50"))
+        assert erro.value.codigo is CodigoErro.NAO_ENCONTRADO
 
 
-class TestVigenciaSugerida:
-    """Decisão 18 — o padrão difere entre primeiro preço e alteração."""
+class TestCorrigirAtual:
+    """Req 1.11 a 1.13 — erro de digitação, sem criar histórico."""
 
-    def test_primeiro_preco_sugere_mes_corrente(
-        self, servico: ServicoPreco, cliente_id: uuid.UUID, lencol: uuid.UUID
-    ) -> None:
-        """Senão o item recém-cadastrado não poderia ser lançado hoje."""
-        sugestao = servico.vigencia_sugerida(cliente_id, lencol, date(2026, 9, 18))
-
-        assert sugestao.vigencia_mes == date(2026, 9, 1)
-        assert sugestao.e_primeiro_preco is True
-
-    def test_alteracao_sugere_mes_seguinte(
+    def test_corrige_o_valor_desde_o_dia_em_que_foi_definido(
         self,
-        servico: ServicoPreco,
+        em,  # noqa: ANN001
         repositorio: RepositorioPrecoFalso,
         cliente_id: uuid.UUID,
         lencol: uuid.UUID,
     ) -> None:
-        """Alteração no meio do mês só passa a valer no mês seguinte."""
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        em(DIA_DA_TROCA).mudar_a_partir_de_hoje(lencol, Decimal("0.48"))  # digitado errado
 
-        sugestao = servico.vigencia_sugerida(cliente_id, lencol, date(2026, 9, 18))
+        corrigido = em(date(2026, 9, 12)).corrigir_atual(lencol, Decimal("4.80"))
 
-        assert sugestao.vigencia_mes == date(2026, 10, 1)
-        assert sugestao.e_primeiro_preco is False
+        assert corrigido.vigencia_inicio == DIA_DA_TROCA
+        assert len(repositorio.registros) == 2
+        servico = em(date(2026, 9, 12))
+        assert _valor(servico, cliente_id, lencol, DIA_DA_TROCA) == Decimal("4.80")
+        # o preço anterior à troca não é tocado
+        assert _valor(servico, cliente_id, lencol, date(2026, 9, 9)) == Decimal("4.50")
 
-    def test_alteracao_em_dezembro_sugere_janeiro_do_ano_seguinte(
+    def test_corrigir_sem_preco_e_recusado(self, em, lencol) -> None:  # noqa: ANN001
+        with pytest.raises(ErroDeDominio) as erro:
+            em(date(2026, 9, 1)).corrigir_atual(lencol, Decimal("4.50"))
+        assert erro.value.codigo is CodigoErro.VALIDACAO
+
+    def test_alterar_despacha_pelo_modo(
         self,
-        servico: ServicoPreco,
+        em,  # noqa: ANN001
+        repositorio: RepositorioPrecoFalso,
+        lencol: uuid.UUID,
+    ) -> None:
+        em(date(2026, 9, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+
+        em(date(2026, 9, 5)).alterar(lencol, Decimal("4.60"), ModoDeAlteracao.CORRIGIR_ATUAL)
+        assert len(repositorio.registros) == 1
+
+        em(date(2026, 9, 5)).alterar(lencol, Decimal("4.70"), ModoDeAlteracao.A_PARTIR_DE_HOJE)
+        assert len(repositorio.registros) == 2
+
+
+class TestImpacto:
+    """Req 1.6 e 1.13 — quantos pedidos gravados mantêm o valor anterior."""
+
+    @pytest.fixture(autouse=True)
+    def _historico(
+        self,
+        em,  # noqa: ANN001
         repositorio: RepositorioPrecoFalso,
         cliente_id: uuid.UUID,
         lencol: uuid.UUID,
     ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
+        em(DIA_DA_TROCA).mudar_a_partir_de_hoje(lencol, Decimal("0.48"))
+        repositorio.semear_pedido(cliente_id, lencol, date(2026, 9, 5), "4.50")  # antes da troca
+        repositorio.semear_pedido(cliente_id, lencol, date(2026, 9, 10), "0.48")
+        repositorio.semear_pedido(cliente_id, lencol, date(2026, 9, 12), "0.48")
 
-        sugestao = servico.vigencia_sugerida(cliente_id, lencol, date(2026, 12, 20))
+    def test_corrigir_conta_os_pedidos_do_periodo_do_preco_atual(self, em, lencol) -> None:  # noqa: ANN001
+        quantidade = em(date(2026, 9, 12)).impacto(
+            lencol, Decimal("4.80"), ModoDeAlteracao.CORRIGIR_ATUAL
+        )
+        assert quantidade == 2
 
-        assert sugestao.vigencia_mes == date(2027, 1, 1)
+    def test_mudar_a_partir_de_hoje_conta_so_de_hoje_em_diante(self, em, lencol) -> None:  # noqa: ANN001
+        quantidade = em(date(2026, 9, 12)).impacto(
+            lencol, Decimal("4.80"), ModoDeAlteracao.A_PARTIR_DE_HOJE
+        )
+        assert quantidade == 1
 
-    def test_recusa_item_de_outro_cliente(
+    def test_pedido_que_ja_tem_o_novo_valor_nao_conta(self, em, lencol) -> None:  # noqa: ANN001
+        quantidade = em(date(2026, 9, 12)).impacto(
+            lencol, Decimal("0.48"), ModoDeAlteracao.CORRIGIR_ATUAL
+        )
+        assert quantidade == 0
+
+    def test_corrigir_o_primeiro_preco_alcanca_datas_anteriores(
         self,
-        servico: ServicoPreco,
-        repositorio_cliente: RepositorioClienteFalso,
-        repositorio_item: RepositorioItemFalso,
-        cliente_id: uuid.UUID,
-    ) -> None:
-        outro = repositorio_cliente.semear("Pousada Vista Verde").id
-        item_do_outro = repositorio_item.semear(outro, "Toalha").id
-
-        with pytest.raises(ErroDeDominio) as excecao:
-            servico.vigencia_sugerida(cliente_id, item_do_outro, date(2026, 9, 18))
-
-        assert excecao.value.codigo == CodigoErro.NAO_ENCONTRADO
-
-
-class TestListagemDoMes:
-    def test_marca_itens_sem_preco(
-        self,
-        servico: ServicoPreco,
+        em,  # noqa: ANN001
         repositorio: RepositorioPrecoFalso,
+        cliente_id: uuid.UUID,
+        fronha: uuid.UUID,
+    ) -> None:
+        em(date(2026, 9, 20)).mudar_a_partir_de_hoje(fronha, Decimal("3.50"))
+        # pedido retroativo anterior ao primeiro preço, gravado com ele
+        repositorio.semear_pedido(cliente_id, fronha, date(2026, 9, 1), "3.50")
+
+        quantidade = em(date(2026, 9, 25)).impacto(
+            fronha, Decimal("3.60"), ModoDeAlteracao.CORRIGIR_ATUAL
+        )
+        assert quantidade == 1
+
+    def test_item_sem_preco_tem_impacto_zero(self, em, fronha) -> None:  # noqa: ANN001
+        assert (
+            em(date(2026, 9, 12)).impacto(fronha, Decimal("3.50"), ModoDeAlteracao.CORRIGIR_ATUAL)
+            == 0
+        )
+
+
+class TestListagemNaData:
+    def test_marca_item_sem_preco(
+        self,
+        em,  # noqa: ANN001
         cliente_id: uuid.UUID,
         lencol: uuid.UUID,
         fronha: uuid.UUID,
     ) -> None:
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
+        em(date(2026, 6, 1)).mudar_a_partir_de_hoje(lencol, Decimal("4.50"))
 
-        listagem = servico.listar_do_mes(cliente_id, date(2026, 9, 1))
+        linhas = em(date(2026, 9, 1)).listar_na_data(cliente_id, date(2026, 9, 1))
+        por_id = {item.id: vigente for item, vigente in linhas}
 
-        por_nome = {nome: vigente for _, nome, vigente in listagem}
-        assert por_nome["Lençol"] is not None
-        assert por_nome["Fronha"] is None
+        assert por_id[lencol] is not None
+        assert por_id[lencol].valor_unitario == Decimal("4.50")
+        assert por_id[fronha] is None
 
-    def test_expoe_a_origem_da_vigencia(
-        self,
-        servico: ServicoPreco,
-        repositorio: RepositorioPrecoFalso,
-        cliente_id: uuid.UUID,
-        lencol: uuid.UUID,
-    ) -> None:
-        """Transparência: o operador vê que o preço de setembro veio de junho."""
-        repositorio.semear(cliente_id, lencol, date(2026, 6, 1), "4.50")
-
-        listagem = servico.listar_do_mes(cliente_id, date(2026, 9, 1))
-        vigente = next(v for _, nome, v in listagem if nome == "Lençol")
-
-        assert vigente is not None
-        assert vigente.vigencia_origem == date(2026, 6, 1)
+    def test_cliente_inexistente(self, em) -> None:  # noqa: ANN001
+        with pytest.raises(ErroDeDominio) as erro:
+            em(date(2026, 9, 1)).listar_na_data(uuid.uuid4(), date(2026, 9, 1))
+        assert erro.value.codigo is CodigoErro.NAO_ENCONTRADO

@@ -37,7 +37,7 @@ relatório-custos-empresas/
 │  ├─ src/
 │  │  ├─ pages/
 │  │  ├─ components/
-│  │  ├─ features/     # clientes, catálogo, preços, lançamentos, relatório
+│  │  ├─ features/     # clientes, catálogo (com preço do item), lançamentos, relatório
 │  │  ├─ lib/          # cliente de API, cliente Supabase (auth)
 │  │  └─ types/
 │  └─ index.html
@@ -49,7 +49,8 @@ relatório-custos-empresas/
 
 - **Cliente** — empresa atendida.
 - **Item** — tipo de item do catálogo, **pertence a um cliente**.
-- **Preço** — preço de um item para um **cliente** em um **mês/ano** (vigência mensal).
+- **Preço** — preço de um item para um **cliente**, válido **a partir de uma data**
+  até a próxima alteração. Editado no Catálogo, junto com o item.
 - **Lançamento** — pedido diário de um cliente numa data. Único por (cliente, data).
   Tem comanda opcional. Contém as linhas de item.
 - **Linha de lançamento** — item + quantidade + **valor unitário congelado** + total.

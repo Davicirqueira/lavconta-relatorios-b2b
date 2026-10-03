@@ -41,6 +41,53 @@ export function formatarInteiro(valor: number): string {
 }
 
 /**
+ * Converte o que o operador digita num campo de preço para o texto decimal
+ * que a API espera ("4,5" → "4.50"), **sem passar por Number**.
+ *
+ * Aceita vírgula ou ponto como separador decimal e ponto como separador de
+ * milhar quando há vírgula ("1.234,56"). Sem vírgula, um ponto seguido de três
+ * dígitos é milhar ("1.234" → "1234.00"); com um ou dois dígitos, é decimal
+ * ("4.50"). Espaços e "R$" são ignorados.
+ *
+ * Devolve `null` para entrada vazia, malformada, com mais de duas casas
+ * decimais, ou não positiva — o formulário mostra o erro, a API valida de novo.
+ */
+export function textoParaDecimal(entrada: string): string | null {
+  const limpo = entrada.replace(/R\$/gi, "").replace(/\s+/g, "");
+  if (!limpo) return null;
+
+  let inteiro: string;
+  let fracao: string;
+
+  if (limpo.includes(",")) {
+    // vírgula é o decimal; pontos, se houver, só como milhar bem formado
+    if (!/^\d{1,3}(\.\d{3})*,\d{1,2}$|^\d+,\d{1,2}$/.test(limpo)) return null;
+    [inteiro, fracao] = limpo.split(",");
+    inteiro = inteiro.replace(/\./g, "");
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(limpo)) {
+    inteiro = limpo.replace(/\./g, "");
+    fracao = "";
+  } else if (/^\d+(\.\d{1,2})?$/.test(limpo)) {
+    [inteiro, fracao = ""] = limpo.split(".");
+  } else {
+    return null;
+  }
+
+  const inteiroNormalizado = inteiro.replace(/^0+(?=\d)/, "");
+  const texto = `${inteiroNormalizado}.${fracao.padEnd(2, "0")}`;
+  // positivo: algum dígito diferente de zero
+  return /[1-9]/.test(texto) ? texto : null;
+}
+
+/**
+ * Texto decimal da API ("4.50") no formato de digitação brasileiro ("4,50"),
+ * para pré-preencher campos. Só troca o separador: nenhuma conversão numérica.
+ */
+export function decimalParaCampo(valor: string): string {
+  return valor.replace(".", ",");
+}
+
+/**
  * Converte string decimal do backend ("1380.50") para número JS.
  * Só usar quando for fazer aritmética — nunca para exibição direta.
  */

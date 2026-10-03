@@ -171,9 +171,9 @@ describe("agendador da prévia", () => {
 
 describe("interpretarErroDeSalvamento", () => {
   const catalogo = [
-    { id: "id-roupao", cliente_id: "c", nome: "Roupão", ativo: true },
-    { id: "id-tapete", cliente_id: "c", nome: "Tapete", ativo: true },
-    { id: "id-lencol", cliente_id: "c", nome: "Lençol", ativo: true },
+    { id: "id-roupao", cliente_id: "c", nome: "Roupão", ativo: true, preco_atual: null },
+    { id: "id-tapete", cliente_id: "c", nome: "Tapete", ativo: true, preco_atual: null },
+    { id: "id-lencol", cliente_id: "c", nome: "Lençol", ativo: true, preco_atual: null },
   ];
 
   it("data duplicada vai para o campo de data, com a mensagem da API", () => {
@@ -197,12 +197,13 @@ describe("interpretarErroDeSalvamento", () => {
   });
 
   it("itens sem preço: banner com a mensagem e as linhas certas marcadas", () => {
-    const erro = new ErroDeApi("ITENS_SEM_PRECO", "Os itens Roupão e Tapete não têm preço.", {
-      itens: ["Roupão", "Tapete"],
-      mes_referencia: "setembro/2026",
-    });
+    // formato da v1.1: sem mês nos detalhes, mensagem orienta ir ao Catálogo
+    const mensagem =
+      "Não foi possível salvar: os itens Roupão e Tapete ainda não têm preço. " +
+      "Defina o preço no Catálogo.";
+    const erro = new ErroDeApi("ITENS_SEM_PRECO", mensagem, { itens: ["Roupão", "Tapete"] });
     const interpretado = interpretarErroDeSalvamento(erro, catalogo);
-    expect(interpretado.geral).toBe("Os itens Roupão e Tapete não têm preço.");
+    expect(interpretado.geral).toBe(mensagem);
     expect(interpretado.itensMarcados.sort()).toEqual(["id-roupao", "id-tapete"]);
   });
 

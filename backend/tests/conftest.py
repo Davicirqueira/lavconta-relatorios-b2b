@@ -10,7 +10,10 @@ SQLite, então testar em outro banco daria falsa cobertura.
 """
 
 import os
+import uuid
 from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -178,6 +181,21 @@ def sessao(engine_teste: Engine) -> Iterator[Session]:
         conexao.close()
 
 
+@pytest.fixture(autouse=True)
+def _limites_zerados() -> Iterator[None]:
+    """Zera os contadores do rate limit a cada teste.
+
+    O limiter guarda os contadores em memória do processo. Sem zerar, a suíte
+    inteira (que cria dezenas de itens em segundos) bateria nos 60/min e os
+    testes falhariam por 429 conforme a ordem de execução. O limite continua
+    ativo: ``test_rate_limit.py`` prova o 429 nas rotas reais.
+    """
+    from app.core.rate_limit import limiter
+
+    limiter.reset()
+    yield
+
+
 @pytest.fixture
 def api(sessao: Session) -> Iterator[TestClient]:
     """Cliente HTTP com o banco de teste e um usuário autenticado fictício.
@@ -205,6 +223,74 @@ def api(sessao: Session) -> Iterator[TestClient]:
 # ---------------------------------------------------------------------------
 # Auxiliares de domínio para os testes
 # ---------------------------------------------------------------------------
+
+
+@contextmanager
+def hoje_fixado(api: TestClient, em: str) -> Iterator[None]:
+    """Durante o bloco, o "hoje" da API é ``em`` (``YYYY-MM-DD``).
+
+    A API decide o início do preço pelo relógio de negócio (v1.1, Req 1.2). O
+    teste fixa esse relógio sobrescrevendo a dependência ``hoje_de_negocio``,
+    para montar histórico em datas passadas pelo caminho real da API.
+    """
+    from app.core.relogio import hoje_de_negocio
+
+    dia = date.fromisoformat(em)
+    sobrescritas = api.app.dependency_overrides  # type: ignore[attr-defined]
+    anterior = sobrescritas.get(hoje_de_negocio)
+    sobrescritas[hoje_de_negocio] = lambda: dia
+    try:
+        yield
+    finally:
+        if anterior is None:
+            sobrescritas.pop(hoje_de_negocio, None)
+        else:
+            sobrescritas[hoje_de_negocio] = anterior
+
+
+def definir_preco(
+    api: TestClient,
+    item_id: str,
+    valor: str,
+    *,
+    em: str,
+    modo: str = "a_partir_de_hoje",
+):  # noqa: ANN201
+    """Altera o preço pela API como se "hoje" fosse ``em``."""
+    with hoje_fixado(api, em):
+        return api.put(f"/api/itens/{item_id}/preco", json={"valor_unitario": valor, "modo": modo})
+
+
+def criar_item_api(
+    api: TestClient,
+    cliente_id: str,
+    nome: str,
+    valor: str = "1.00",
+    *,
+    em: str = "2026-06-01",
+):  # noqa: ANN201
+    """Cria item com o primeiro preço pela API, como se "hoje" fosse ``em``.
+
+    Devolve a resposta (para testes que verificam status); use ``.json()["id"]``.
+    """
+    with hoje_fixado(api, em):
+        return api.post(
+            f"/api/clientes/{cliente_id}/itens", json={"nome": nome, "valor_unitario": valor}
+        )
+
+
+def criar_item_sem_preco(sessao: Session, cliente_id: str, nome: str) -> str:
+    """Item sem nenhum preço, gravado direto na sessão do teste.
+
+    Pela API isso não é mais possível (o preço é obrigatório ao criar, Req 3.1);
+    o caso continua existindo em dado legado e precisa de cobertura (Req 3.5).
+    """
+    from app.models.item import Item
+
+    item = Item(cliente_id=uuid.UUID(cliente_id), nome=nome)
+    sessao.add(item)
+    sessao.flush()
+    return str(item.id)
 
 
 def criar_cliente(conexao: Connection, nome: str) -> str:

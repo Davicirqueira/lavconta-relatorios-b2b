@@ -1,6 +1,9 @@
 /**
- * Hooks TanStack Query para Itens do catálogo.
+ * Hooks TanStack Query para o catálogo (itens com preço, v1.1).
  * O catálogo é sempre por cliente — itens não têm existência sem cliente.
+ *
+ * Toda escrita invalida também os preços por data, usados pelo formulário de
+ * pedido: mudar um preço no catálogo precisa refletir lá.
  */
 
 import {
@@ -9,10 +12,19 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import { apiDelete, apiGet, apiPatch, apiPost, ErroDeApi } from "@/lib/api";
-import type { Item } from "@/types/api";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut, ErroDeApi } from "@/lib/api";
+import type {
+  AlteracaoDePreco,
+  ImpactoDaAlteracao,
+  Item,
+  ItemNovo,
+  ModoDeAlteracao,
+  PrecoAtual,
+  PrecosNaData,
+} from "@/types/api";
 
 const CHAVE = "itens";
+const CHAVE_PRECOS = "precos";
 
 // ------------------------------------------------------------------ //
 // Queries                                                             //
@@ -32,48 +44,94 @@ export function useItens(
   });
 }
 
+/** Preço de cada item na data do pedido (YYYY-MM-DD). */
+export function usePrecosNaData(
+  clienteId: string,
+  data: string,
+  incluirInativos = false,
+): UseQueryResult<PrecosNaData, ErroDeApi> {
+  return useQuery({
+    queryKey: [CHAVE_PRECOS, clienteId, data, { incluirInativos }],
+    queryFn: () =>
+      apiGet<PrecosNaData>(`/api/clientes/${clienteId}/precos`, {
+        data,
+        incluir_inativos: incluirInativos,
+      }),
+    enabled: !!clienteId && /^\d{4}-\d{2}-\d{2}$/.test(data),
+  });
+}
+
+/** Quantos pedidos já registrados continuam com o valor anterior. */
+export function consultarImpacto(
+  itemId: string,
+  valorUnitario: string,
+  modo: ModoDeAlteracao,
+): Promise<ImpactoDaAlteracao> {
+  return apiGet<ImpactoDaAlteracao>(`/api/itens/${itemId}/preco/impacto`, {
+    valor_unitario: valorUnitario,
+    modo,
+  });
+}
+
 // ------------------------------------------------------------------ //
 // Mutações                                                            //
 // ------------------------------------------------------------------ //
 
-export function useCriarItem(clienteId: string) {
+function useInvalidarCatalogo() {
   const qc = useQueryClient();
+  return () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: [CHAVE] }),
+      qc.invalidateQueries({ queryKey: [CHAVE_PRECOS] }),
+    ]);
+}
+
+export function useCriarItem(clienteId: string) {
+  const invalidar = useInvalidarCatalogo();
   return useMutation({
-    mutationFn: (nome: string) =>
-      apiPost<Item>(`/api/clientes/${clienteId}/itens`, { nome }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE, clienteId] }),
+    mutationFn: (corpo: ItemNovo) => apiPost<Item>(`/api/clientes/${clienteId}/itens`, corpo),
+    onSuccess: invalidar,
   });
 }
 
 export function useRenomearItem() {
-  const qc = useQueryClient();
+  const invalidar = useInvalidarCatalogo();
   return useMutation({
     mutationFn: ({ id, nome }: { id: string; nome: string }) =>
       apiPatch<Item>(`/api/itens/${id}`, { nome }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE] }),
+    onSuccess: invalidar,
+  });
+}
+
+export function useAlterarPreco() {
+  const invalidar = useInvalidarCatalogo();
+  return useMutation({
+    mutationFn: ({ id, ...corpo }: AlteracaoDePreco & { id: string }) =>
+      apiPut<PrecoAtual>(`/api/itens/${id}/preco`, corpo),
+    onSuccess: invalidar,
   });
 }
 
 export function useInativarItem() {
-  const qc = useQueryClient();
+  const invalidar = useInvalidarCatalogo();
   return useMutation({
     mutationFn: (id: string) => apiPost<Item>(`/api/itens/${id}/inativar`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE] }),
+    onSuccess: invalidar,
   });
 }
 
 export function useReativarItem() {
-  const qc = useQueryClient();
+  const invalidar = useInvalidarCatalogo();
   return useMutation({
     mutationFn: (id: string) => apiPost<Item>(`/api/itens/${id}/reativar`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE] }),
+    onSuccess: invalidar,
   });
 }
 
 export function useExcluirItem() {
-  const qc = useQueryClient();
+  const invalidar = useInvalidarCatalogo();
   return useMutation({
     mutationFn: (id: string) => apiDelete(`/api/itens/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE] }),
+    onSuccess: invalidar,
   });
 }

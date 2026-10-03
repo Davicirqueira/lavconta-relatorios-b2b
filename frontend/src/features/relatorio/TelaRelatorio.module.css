@@ -190,3 +190,92 @@
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* --- Relatório geral (v1.1): três cartões, seções por cliente, total geral --- */
+
+.cartoesTres {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .cartoesTres {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.secaoCliente {
+  margin-bottom: 20px;
+}
+
+.secaoTopo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.secaoTitulo {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gelo-800);
+}
+
+.secaoTotais {
+  font-size: 14px;
+  color: var(--gelo-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalGeral {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  background: var(--azul-50);
+  border: 1px solid var(--azul-200);
+  border-radius: var(--raio-lg);
+}
+
+.totalGeralRotulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--azul-900);
+}
+
+.totalGeralValores {
+  font-size: 16px;
+  color: var(--azul-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalGeralValores strong {
+  font-weight: 600;
+}
+
+/* Tabelas das seções com layout fixo: a coluna "Por peça" fica no mesmo lugar
+   em todos os clientes, independentemente do tamanho dos nomes */
+.tabelaSecao {
+  table-layout: fixed;
+}
+
+.colItem {
+  width: 40%;
+}
+
+.colNumero {
+  width: 18%;
+}
+
+.colSubtotal {
+  width: 24%;
+}
+
+.tabelaSecao td:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

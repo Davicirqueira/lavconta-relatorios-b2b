@@ -64,7 +64,7 @@ class PreviaEntrada(BaseModel):
 
     cliente_id: uuid.UUID
     data: date = Field(
-        description="Data do pedido. Define o mês usado para resolver o preço.",
+        description="Data do pedido. É ela que define o preço aplicado a cada item.",
         examples=["2026-09-01"],
     )
     linhas: list[LinhaEntrada] = Field(min_length=1)
@@ -86,7 +86,7 @@ class LinhaResposta(BaseModel):
     item_id: uuid.UUID
     quantidade: int
     valor_unitario_congelado: DinheiroTexto = Field(
-        description="Preço vigente no mês da data do lançamento, gravado na criação."
+        description="Preço do item na data do pedido, gravado na criação. Não muda depois."
     )
     total: DinheiroTexto = Field(description="Valor congelado × quantidade.")
 

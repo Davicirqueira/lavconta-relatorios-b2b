@@ -40,7 +40,8 @@ from scripts_dev.banco_dev import (
 # --------------------------------------------------------------------------
 
 JUNHO = date(2026, 6, 1)
-SETEMBRO = date(2026, 9, 1)
+# meio do mês de propósito: exercita a regra v1.1 (preço vale a partir do dia)
+REAJUSTE_EM = date(2026, 9, 15)
 
 # cliente -> itens (nome, preço desde junho ou None para "sem preço")
 CATALOGOS: dict[str, list[tuple[str, str | None]]] = {
@@ -51,7 +52,7 @@ CATALOGOS: dict[str, list[tuple[str, str | None]]] = {
         ("Toalha de rosto", "2.80"),
         ("Roupão", "9.00"),
         ("Tapete", "7.00"),
-        # sem preço de propósito: mostra o alerta na tela de preços
+        # sem preço de propósito: mostra o "Sem preço" no catálogo e no pedido
         ("Edredom", None),
     ],
     "Restaurante Bom Prato": [
@@ -70,9 +71,9 @@ CATALOGOS: dict[str, list[tuple[str, str | None]]] = {
     ],
 }
 
-# reajuste em setembro: lançamentos de agosto e de setembro ficam com valores
-# congelados diferentes para o mesmo item (relatório cruzando meses)
-REAJUSTES = {("Hotel Aurora", "Lençol"): (SETEMBRO, "4.80")}
+# reajuste em 15/09: pedidos até 14/09 e a partir de 15/09 ficam com valores
+# congelados diferentes para o mesmo item, dentro do mesmo mês
+REAJUSTES = {("Hotel Aurora", "Lençol"): (REAJUSTE_EM, "4.80")}
 
 # faixa de quantidade por item, por pedido
 FAIXAS: dict[str, tuple[int, int]] = {
@@ -158,7 +159,13 @@ def popular(sessao: Session) -> None:
     repo_item = RepositorioItem(sessao)
     servico_cliente = ServicoCliente(repo_cliente)
     servico_item = ServicoItem(repo_item, repo_cliente)
-    servico_preco = ServicoPreco(RepositorioPreco(sessao), repo_cliente, repo_item)
+    repo_preco = RepositorioPreco(sessao)
+
+    def preco_em(dia: date) -> ServicoPreco:
+        """Serviço com o relógio fixado: o preço "é alterado" naquele dia."""
+        return ServicoPreco(repo_preco, repo_cliente, repo_item, hoje=lambda: dia)
+
+    servico_preco = ServicoPreco(repo_preco, repo_cliente, repo_item)
     servico_lancamento = ServicoLancamento(
         RepositorioLancamento(sessao), repo_cliente, repo_item, servico_preco
     )
@@ -178,11 +185,11 @@ def popular(sessao: Session) -> None:
         for nome_item, preco in catalogo:
             item = servico_item.criar(cliente.id, nome_item)
             if preco is not None:
-                servico_preco.definir(cliente.id, item.id, JUNHO, Decimal(preco))
+                preco_em(JUNHO).mudar_a_partir_de_hoje(item.id, Decimal(preco))
                 itens_com_preco.append(item)
             reajuste = REAJUSTES.get((nome_cliente, nome_item))
             if reajuste:
-                servico_preco.definir(cliente.id, item.id, reajuste[0], Decimal(reajuste[1]))
+                preco_em(reajuste[0]).mudar_a_partir_de_hoje(item.id, Decimal(reajuste[1]))
 
         # Hotel Aurora tem histórico diário; os demais, mais espaçado
         dias = _dias_de_pedido(INICIO_HISTORICO, hoje, sorteio)

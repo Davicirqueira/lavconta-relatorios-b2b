@@ -7,7 +7,8 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.dominio import LinhaDeFechamento
+from app.dominio import LinhaDeFechamento, LinhaDoResumoGeral
+from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.lancamento import Lancamento, LancamentoLinha
 
@@ -109,6 +110,55 @@ class RepositorioLancamento:
                 quantidade=registro.quantidade,
                 valor_unitario_congelado=registro.valor_unitario_congelado,
                 total=registro.total,
+            )
+            for registro in self._sessao.execute(consulta)
+        ]
+
+    def buscar_resumo_geral(self, inicio: date, fim: date) -> list[LinhaDoResumoGeral]:
+        """Todos os clientes do período, somados por (cliente, item, valor) — v1.1, Req 5.
+
+        **Uma** consulta agrupada, qualquer que seja o número de clientes (Req 5.9).
+
+        - ``inner join`` com lançamentos: cliente sem pedido no período não aparece;
+          cliente inativo com pedido aparece (o filtro é só de data, Req 5.5).
+        - Agrupar também pelo valor congelado faz o mesmo item, a dois valores no
+          período, sair em duas linhas (Req 5.4). Nada é recalculado: ``sum(total)``
+          soma a coluna gerada do banco.
+        - A ordem final (nomes sem acento) é decidida no serviço, como no
+          relatório por cliente.
+        """
+        consulta = (
+            select(
+                Cliente.id.label("cliente_id"),
+                Cliente.nome.label("cliente_nome"),
+                Item.id.label("item_id"),
+                Item.nome.label("item_nome"),
+                LancamentoLinha.valor_unitario_congelado.label("valor_unitario"),
+                func.sum(LancamentoLinha.quantidade).label("quantidade"),
+                func.sum(LancamentoLinha.total).label("subtotal"),
+            )
+            .select_from(Lancamento)
+            .join(LancamentoLinha, LancamentoLinha.lancamento_id == Lancamento.id)
+            .join(Item, Item.id == LancamentoLinha.item_id)
+            .join(Cliente, Cliente.id == Lancamento.cliente_id)
+            .where(Lancamento.data >= inicio, Lancamento.data <= fim)
+            .group_by(
+                Cliente.id,
+                Cliente.nome,
+                Item.id,
+                Item.nome,
+                LancamentoLinha.valor_unitario_congelado,
+            )
+        )
+        return [
+            LinhaDoResumoGeral(
+                cliente_id=registro.cliente_id,
+                cliente_nome=registro.cliente_nome,
+                item_id=registro.item_id,
+                item_nome=registro.item_nome,
+                valor_unitario=registro.valor_unitario,
+                quantidade=int(registro.quantidade),
+                subtotal=registro.subtotal,
             )
             for registro in self._sessao.execute(consulta)
         ]

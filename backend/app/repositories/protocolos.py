@@ -27,7 +27,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
-from app.dominio import LinhaDeFechamento, PrecoVigente
+from app.dominio import LinhaDeFechamento, LinhaDoResumoGeral, PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.preco import Preco
@@ -58,27 +58,43 @@ class RepositorioPrecoProtocolo(Protocol):
         self,
         cliente_id: uuid.UUID,
         item_ids: Sequence[uuid.UUID],
-        mes_referencia: date,
+        data: date,
     ) -> dict[uuid.UUID, PrecoVigente]:
-        """Preço vigente de cada item no mês de referência.
+        """Preço vigente de cada item na data (regra em ``preco_repo``).
 
-        Item ausente no retorno não tem preço definido até aquele mês.
+        Item ausente no retorno não tem nenhum preço.
         """
         ...
 
-    def obter_do_mes(
-        self, cliente_id: uuid.UUID, item_id: uuid.UUID, vigencia_mes: date
-    ) -> Preco | None:
-        """Preço definido exatamente naquele mês, sem resolver propagação."""
+    def obter_vigente(self, cliente_id: uuid.UUID, item_id: uuid.UUID, data: date) -> Preco | None:
+        """O registro que a resolução escolheria para a data."""
         ...
 
-    def existe_algum(self, cliente_id: uuid.UUID, item_id: uuid.UUID) -> bool: ...
+    def obter_no_dia(self, cliente_id: uuid.UUID, item_id: uuid.UUID, dia: date) -> Preco | None:
+        """Preço com início exatamente naquele dia."""
+        ...
+
+    def inicios(self, cliente_id: uuid.UUID, item_id: uuid.UUID) -> list[date]:
+        """Datas de início de todos os preços do item, em ordem crescente."""
+        ...
+
+    def contar_pedidos_afetados(
+        self,
+        cliente_id: uuid.UUID,
+        item_id: uuid.UUID,
+        *,
+        desde: date | None,
+        ate_exclusivo: date | None,
+        valor_diferente_de: Decimal,
+    ) -> int:
+        """Pedidos gravados no intervalo com o item a valor diferente do informado."""
+        ...
 
     def inserir(
         self,
         cliente_id: uuid.UUID,
         item_id: uuid.UUID,
-        vigencia_mes: date,
+        vigencia_inicio: date,
         valor_unitario: Decimal,
     ) -> Preco: ...
 
@@ -121,4 +137,8 @@ class RepositorioFechamentoProtocolo(Protocol):
         self, cliente_id: uuid.UUID, inicio: date, fim: date
     ) -> list[LinhaDeFechamento]:
         """Linhas de lançamento do cliente no período, ordenadas por data."""
+        ...
+
+    def buscar_resumo_geral(self, inicio: date, fim: date) -> list[LinhaDoResumoGeral]:
+        """Todos os clientes do período, somados por (cliente, item, valor congelado)."""
         ...

@@ -128,13 +128,16 @@ class TestFluxoCompletoComTokenReal:
 
         for nome in ("Lençol", "Fronha", "Toalha"):
             resposta = api_autenticada.post(
-                f"/api/clientes/{cliente_id}/itens", json={"nome": nome}, headers=cabecalho
+                f"/api/clientes/{cliente_id}/itens",
+                json={"nome": nome, "valor_unitario": "4.50"},
+                headers=cabecalho,
             )
             assert resposta.status_code == 201
 
         itens = api_autenticada.get(f"/api/clientes/{cliente_id}/itens", headers=cabecalho).json()
 
         assert [item["nome"] for item in itens] == ["Fronha", "Lençol", "Toalha"]
+        assert {item["preco_atual"]["valor_unitario"] for item in itens} == {"4.50"}
 
     def test_regra_de_negocio_vale_com_token_real(
         self, api_autenticada: TestClient, token_valido: str

@@ -22,7 +22,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
-from app.dominio import Relatorio
+from app.dominio import LinhaResumoItem, Relatorio, RelatorioGeral
 
 # Dinheiro na saída: sempre duas casas decimais como string (ex: "395.00").
 DinheiroTexto = Annotated[Decimal, PlainSerializer(lambda valor: f"{valor:.2f}", return_type=str)]
@@ -87,6 +87,27 @@ class ResumoDoRelatorioResposta(BaseModel):
     media_diaria_pecas: int
 
 
+class LinhaResumoItemResposta(BaseModel):
+    """Um item a um valor por peça, somado no período (v1.1)."""
+
+    model_config = ConfigDict(frozen=True)
+    item_id: uuid.UUID
+    item_nome: str
+    valor_unitario: DinheiroTexto
+    quantidade: int
+    subtotal: DinheiroTexto
+
+    @classmethod
+    def de(cls, linha: LinhaResumoItem) -> "LinhaResumoItemResposta":
+        return cls(
+            item_id=linha.item_id,
+            item_nome=linha.item_nome,
+            valor_unitario=linha.valor_unitario,
+            quantidade=linha.quantidade,
+            subtotal=linha.subtotal,
+        )
+
+
 class RelatorioResposta(BaseModel):
     """Contrato completo de resposta do endpoint GET /api/relatorio."""
 
@@ -97,6 +118,9 @@ class RelatorioResposta(BaseModel):
     linhas: list[LinhaDoRelatorioResposta]
     totais: TotaisDoRelatorioResposta
     resumo: ResumoDoRelatorioResposta
+    resumo_por_item: list[LinhaResumoItemResposta] = Field(
+        description="Peças e subtotal por item e valor por peça, para conferência."
+    )
 
     @classmethod
     def do_dominio(cls, relatorio: Relatorio) -> "RelatorioResposta":
@@ -136,4 +160,49 @@ class RelatorioResposta(BaseModel):
                 quantidade_lancamentos=relatorio.resumo.quantidade_lancamentos,
                 media_diaria_pecas=relatorio.resumo.media_diaria_pecas,
             ),
+            resumo_por_item=[
+                LinhaResumoItemResposta.de(linha) for linha in relatorio.resumo_por_item
+            ],
+        )
+
+
+# ---------------------------------------------------------------------------
+# Relatório geral — todos os clientes (v1.1, Req 5)
+# ---------------------------------------------------------------------------
+
+
+class SecaoDoClienteResposta(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cliente: ClienteIdentificacao
+    linhas: list[LinhaResumoItemResposta]
+    total_pecas: int
+    total_valor: DinheiroTexto
+
+
+class RelatorioGeralResposta(BaseModel):
+    """Contrato de GET /api/relatorio/geral."""
+
+    model_config = ConfigDict(frozen=True)
+    periodo: PeriodoResposta
+    secoes: list[SecaoDoClienteResposta] = Field(
+        description="Um cliente por seção, em ordem alfabética. Só clientes com pedido."
+    )
+    total_pecas: int
+    total_valor: DinheiroTexto
+
+    @classmethod
+    def do_dominio(cls, relatorio: RelatorioGeral) -> "RelatorioGeralResposta":
+        return cls(
+            periodo=PeriodoResposta(inicio=relatorio.inicio, fim=relatorio.fim),
+            secoes=[
+                SecaoDoClienteResposta(
+                    cliente=ClienteIdentificacao(id=secao.cliente_id, nome=secao.cliente_nome),
+                    linhas=[LinhaResumoItemResposta.de(linha) for linha in secao.linhas],
+                    total_pecas=secao.total_pecas,
+                    total_valor=secao.total_valor,
+                )
+                for secao in relatorio.secoes
+            ],
+            total_pecas=relatorio.total_pecas,
+            total_valor=relatorio.total_valor,
         )

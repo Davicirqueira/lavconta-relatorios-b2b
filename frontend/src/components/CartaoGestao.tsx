@@ -26,11 +26,23 @@ interface PropsCartaoGestao {
   /** Iniciais ou ícone exibido no selo do cartão. */
   marca: ReactNode;
   acoes: AcaoCartao[];
+  /** Linha abaixo do título (ex.: preço por peça). */
+  detalhe?: ReactNode;
+  /** Destaca o detalhe como alerta (ex.: item sem preço). Acompanha texto, não só cor. */
+  detalheEmAlerta?: boolean;
   /** Ordem do cartão na lista, para a entrada escalonada (40ms entre cartões). */
   indice?: number;
 }
 
-export function CartaoGestao({ titulo, ativo, marca, acoes, indice = 0 }: PropsCartaoGestao) {
+export function CartaoGestao({
+  titulo,
+  ativo,
+  marca,
+  acoes,
+  detalhe,
+  detalheEmAlerta = false,
+  indice = 0,
+}: PropsCartaoGestao) {
   // limita o escalonamento: listas longas não devem demorar para aparecer
   const estilo = { "--atraso": `${Math.min(indice, 12) * 40}ms` } as CSSProperties;
 
@@ -48,9 +60,20 @@ export function CartaoGestao({ titulo, ativo, marca, acoes, indice = 0 }: PropsC
         <Badge tipo={ativo ? "sucesso" : "neutro"}>{ativo ? "Ativo" : "Inativo"}</Badge>
       </div>
 
-      <h3 className={styles.titulo} title={titulo}>
-        {titulo}
-      </h3>
+      <div className={styles.cabecalhoTexto}>
+        <h3 className={styles.titulo} title={titulo}>
+          {titulo}
+        </h3>
+        {detalhe && (
+          <p
+            className={[styles.detalhe, detalheEmAlerta ? styles.detalheAlerta : ""]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {detalhe}
+          </p>
+        )}
+      </div>
 
       <div className={styles.rodape}>
         {acoes.map((acao) => (

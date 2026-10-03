@@ -10,9 +10,11 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.core.datas import hoje_sp
 from app.core.erros import CodigoErro
+from tests.conftest import criar_item_api, criar_item_sem_preco, definir_preco
 
 CAMINHO = "/api/lancamentos"
 ID_INEXISTENTE = "11111111-2222-3333-4444-555555555555"
@@ -30,12 +32,7 @@ def cliente_id(api: TestClient) -> str:
 def criar_item_com_preco(
     api: TestClient, cliente_id: str, nome: str, valor: str, mes: str = "2026-06"
 ) -> str:
-    item_id = api.post(f"/api/clientes/{cliente_id}/itens", json={"nome": nome}).json()["id"]
-    api.put(
-        f"/api/clientes/{cliente_id}/precos",
-        json={"item_id": item_id, "vigencia_mes": mes, "valor_unitario": valor},
-    )
-    return item_id
+    return criar_item_api(api, cliente_id, nome, valor, em=f"{mes}-01").json()["id"]
 
 
 @pytest.fixture
@@ -49,8 +46,8 @@ def fronha(api: TestClient, cliente_id: str) -> str:
 
 
 @pytest.fixture
-def sem_preco(api: TestClient, cliente_id: str) -> str:
-    return api.post(f"/api/clientes/{cliente_id}/itens", json={"nome": "Roupão"}).json()["id"]
+def sem_preco(sessao: Session, cliente_id: str) -> str:
+    return criar_item_sem_preco(sessao, cliente_id, "Roupão")
 
 
 def criar(
@@ -226,10 +223,7 @@ class TestCongelamentoNoBancoReal:
         criado = criar(api, cliente_id, [{"item_id": lencol, "quantidade": 40}]).json()
 
         # preço sobe, com vigência no próprio mês do pedido
-        api.put(
-            f"/api/clientes/{cliente_id}/precos",
-            json={"item_id": lencol, "vigencia_mes": MES_PEDIDO, "valor_unitario": "9.99"},
-        )
+        definir_preco(api, lencol, "9.99", em=f"{MES_PEDIDO}-01")
 
         relido = api.get(f"{CAMINHO}/{criado['id']}").json()
 
@@ -239,10 +233,7 @@ class TestCongelamentoNoBancoReal:
     def test_lancamento_retroativo_usa_o_mes_do_pedido(
         self, api: TestClient, cliente_id: str, lencol: str
     ) -> None:
-        api.put(
-            f"/api/clientes/{cliente_id}/precos",
-            json={"item_id": lencol, "vigencia_mes": MES_PEDIDO, "valor_unitario": "4.80"},
-        )
+        definir_preco(api, lencol, "4.80", em=f"{MES_PEDIDO}-01")
 
         corpo = criar(
             api, cliente_id, [{"item_id": lencol, "quantidade": 10}], data="2026-08-28"
@@ -256,10 +247,7 @@ class TestEdicao:
         self, api: TestClient, cliente_id: str, lencol: str
     ) -> None:
         criado = criar(api, cliente_id, [{"item_id": lencol, "quantidade": 40}]).json()
-        api.put(
-            f"/api/clientes/{cliente_id}/precos",
-            json={"item_id": lencol, "vigencia_mes": MES_PEDIDO, "valor_unitario": "9.99"},
-        )
+        definir_preco(api, lencol, "9.99", em=f"{MES_PEDIDO}-01")
 
         editado = api.put(
             f"{CAMINHO}/{criado['id']}",
@@ -280,10 +268,7 @@ class TestEdicao:
     ) -> None:
         """Pedido de agosto: a linha nova recebe preço de agosto."""
         toalha = criar_item_com_preco(api, cliente_id, "Toalha", "6.00", mes="2026-08")
-        api.put(
-            f"/api/clientes/{cliente_id}/precos",
-            json={"item_id": toalha, "vigencia_mes": "2026-09", "valor_unitario": "7.00"},
-        )
+        definir_preco(api, toalha, "7.00", em="2026-09-01")
 
         criado = criar(
             api, cliente_id, [{"item_id": lencol, "quantidade": 10}], data="2026-08-28"

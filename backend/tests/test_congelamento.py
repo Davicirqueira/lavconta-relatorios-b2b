@@ -267,18 +267,21 @@ class TestItemSemPreco:
 
         assert excecao.value.codigo == CodigoErro.ITENS_SEM_PRECO
 
-    def test_mensagem_nomeia_o_item_e_o_mes(
+    def test_mensagem_nomeia_o_item_e_diz_o_que_fazer(
         self,
         servico: ServicoLancamento,
         cliente_id: uuid.UUID,
         sem_preco: uuid.UUID,
     ) -> None:
+        """v1.1, Req 4.3: orienta a ação, sem citar mês."""
         with pytest.raises(ErroDeDominio) as excecao:
             servico.criar(cliente_id, DATA_PEDIDO, [LinhaSolicitada(sem_preco, 5)])
 
-        assert "Roupão" in excecao.value.mensagem
-        assert "setembro/2026" in excecao.value.mensagem
-        assert excecao.value.detalhes["itens"] == ["Roupão"]
+        assert excecao.value.mensagem == (
+            "Não foi possível salvar: o item Roupão ainda não tem preço. "
+            "Defina o preço no Catálogo."
+        )
+        assert excecao.value.detalhes == {"itens": ["Roupão"]}
 
     def test_nada_e_gravado(
         self,
@@ -292,21 +295,25 @@ class TestItemSemPreco:
 
         assert repositorio.registros == {}
 
-    def test_preco_existe_mas_e_posterior_ao_pedido(
+    def test_primeiro_preco_posterior_ao_pedido_vale_para_tras(
         self,
         servico: ServicoLancamento,
+        repositorio: RepositorioLancamentoFalso,
         repositorio_preco: RepositorioPrecoFalso,
         repositorio_item: RepositorioItemFalso,
         cliente_id: uuid.UUID,
     ) -> None:
-        """Preço só a partir de outubro; pedido de setembro fica sem valor."""
+        """v1.1, Req 1.7 — item cadastrado em outubro entra em pedido de setembro.
+
+        Na v1 este caso era "sem preço". Agora o primeiro preço vale também para
+        datas anteriores, porque não há preço anterior a preservar.
+        """
         item = repositorio_item.semear(cliente_id, "Tapete")
         repositorio_preco.semear(cliente_id, item.id, date(2026, 10, 1), "8.00")
 
-        with pytest.raises(ErroDeDominio) as excecao:
-            servico.criar(cliente_id, DATA_PEDIDO, [LinhaSolicitada(item.id, 2)])
+        lancamento = servico.criar(cliente_id, DATA_PEDIDO, [LinhaSolicitada(item.id, 2)])
 
-        assert excecao.value.codigo == CodigoErro.ITENS_SEM_PRECO
+        assert repositorio.linhas[lancamento.id][0].valor_unitario_congelado == Decimal("8.00")
 
 
 class TestValidacoesDeEntrada:

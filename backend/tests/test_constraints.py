@@ -81,36 +81,50 @@ class TestItemNomeUnicoPorCliente:
         assert total == 2
 
 
-class TestPrecoVigencia:
-    """Req 4 — vigência no dia 1, valor positivo, item do próprio cliente."""
+class TestPrecoPorData:
+    """v1.1 — um preço por (cliente, item, dia), valor positivo, item do próprio cliente."""
 
-    def test_aceita_vigencia_no_primeiro_dia(self, conexao: Connection) -> None:
+    INSERT = (
+        "insert into precos (cliente_id, item_id, vigencia_inicio, valor_unitario)"
+        " values (:c, :i, :inicio, :valor)"
+    )
+
+    def test_aceita_inicio_no_meio_do_mes(self, conexao: Connection) -> None:
         cliente = criar_cliente(conexao, "Hotel Aurora")
         item = criar_item(conexao, cliente, "Lençol")
 
-        executar(
-            conexao,
-            "insert into precos (cliente_id, item_id, vigencia_mes, valor_unitario)"
-            " values (:c, :i, '2026-06-01', 4.50)",
-            c=cliente,
-            i=item,
-        )
+        executar(conexao, self.INSERT, c=cliente, i=item, inicio="2026-06-15", valor=4.50)
 
         total = conexao.execute(text("select count(*) from precos")).scalar_one()
         assert total == 1
 
-    def test_recusa_vigencia_no_meio_do_mes(self, conexao: Connection) -> None:
+    def test_aceita_dois_precos_no_mesmo_mes_em_dias_diferentes(self, conexao: Connection) -> None:
+        """A regra antiga (um por mês) não existe mais no banco."""
+        cliente = criar_cliente(conexao, "Hotel Aurora")
+        item = criar_item(conexao, cliente, "Lençol")
+
+        executar(conexao, self.INSERT, c=cliente, i=item, inicio="2026-09-01", valor=4.50)
+        executar(conexao, self.INSERT, c=cliente, i=item, inicio="2026-09-15", valor=4.80)
+
+        total = conexao.execute(text("select count(*) from precos")).scalar_one()
+        assert total == 2
+
+    def test_recusa_dois_precos_no_mesmo_dia(self, conexao: Connection) -> None:
+        """uq_precos_cliente_item_inicio: duas alterações no mesmo dia viram uma."""
+        cliente = criar_cliente(conexao, "Hotel Aurora")
+        item = criar_item(conexao, cliente, "Lençol")
+        executar(conexao, self.INSERT, c=cliente, i=item, inicio="2026-09-15", valor=4.50)
+
+        with pytest.raises(IntegrityError) as erro:
+            executar(conexao, self.INSERT, c=cliente, i=item, inicio="2026-09-15", valor=5.00)
+        assert "uq_precos_cliente_item_inicio" in str(erro.value)
+
+    def test_exige_data_de_inicio(self, conexao: Connection) -> None:
         cliente = criar_cliente(conexao, "Hotel Aurora")
         item = criar_item(conexao, cliente, "Lençol")
 
         with pytest.raises(IntegrityError):
-            executar(
-                conexao,
-                "insert into precos (cliente_id, item_id, vigencia_mes, valor_unitario)"
-                " values (:c, :i, '2026-06-15', 4.50)",
-                c=cliente,
-                i=item,
-            )
+            executar(conexao, self.INSERT, c=cliente, i=item, inicio=None, valor=4.50)
 
     @pytest.mark.parametrize("valor", [Decimal("0"), Decimal("-1.00")])
     def test_recusa_valor_nao_positivo(self, conexao: Connection, valor: Decimal) -> None:
@@ -118,14 +132,7 @@ class TestPrecoVigencia:
         item = criar_item(conexao, cliente, "Lençol")
 
         with pytest.raises(IntegrityError):
-            executar(
-                conexao,
-                "insert into precos (cliente_id, item_id, vigencia_mes, valor_unitario)"
-                " values (:c, :i, '2026-06-01', :valor)",
-                c=cliente,
-                i=item,
-                valor=valor,
-            )
+            executar(conexao, self.INSERT, c=cliente, i=item, inicio="2026-06-01", valor=valor)
 
     def test_recusa_preco_com_item_de_outro_cliente(self, conexao: Connection) -> None:
         """A FK composta impede misturar catálogo entre clientes."""
@@ -135,31 +142,7 @@ class TestPrecoVigencia:
 
         with pytest.raises(IntegrityError):
             executar(
-                conexao,
-                "insert into precos (cliente_id, item_id, vigencia_mes, valor_unitario)"
-                " values (:c, :i, '2026-06-01', 4.50)",
-                c=hotel,
-                i=item_da_pousada,
-            )
-
-    def test_recusa_preco_duplicado_no_mesmo_mes(self, conexao: Connection) -> None:
-        cliente = criar_cliente(conexao, "Hotel Aurora")
-        item = criar_item(conexao, cliente, "Lençol")
-        executar(
-            conexao,
-            "insert into precos (cliente_id, item_id, vigencia_mes, valor_unitario)"
-            " values (:c, :i, '2026-06-01', 4.50)",
-            c=cliente,
-            i=item,
-        )
-
-        with pytest.raises(IntegrityError):
-            executar(
-                conexao,
-                "insert into precos (cliente_id, item_id, vigencia_mes, valor_unitario)"
-                " values (:c, :i, '2026-06-01', 5.00)",
-                c=cliente,
-                i=item,
+                conexao, self.INSERT, c=hotel, i=item_da_pousada, inicio="2026-06-01", valor=4.50
             )
 
 

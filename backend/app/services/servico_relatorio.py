@@ -28,8 +28,11 @@ from app.dominio import (
     ColunaDeItem,
     LinhaDeFechamento,
     LinhaDoRelatorio,
+    LinhaResumoItem,
     Relatorio,
+    RelatorioGeral,
     ResumoDoRelatorio,
+    SecaoDoCliente,
     TotaisDoRelatorio,
 )
 from app.repositories.protocolos import (
@@ -140,6 +143,56 @@ class ServicoRelatorio:
                 quantidade_lancamentos=len(linhas),
                 media_diaria_pecas=_media_inteira(totais.total_pecas, len(linhas)),
             ),
+            resumo_por_item=self._resumo_por_item(registros),
+        )
+
+    def gerar_geral(self, inicio: date, fim: date) -> RelatorioGeral:
+        """Todos os clientes com pedido no período (v1.1, Req 5).
+
+        Uma seção por cliente (item · valor por peça · peças · subtotal) e o total
+        geral. Clientes sem pedido não aparecem; inativos com pedido, sim.
+
+        O total de cada seção é a soma das suas linhas, e o total geral é a soma
+        das seções já montadas — o mesmo encadeamento do relatório por cliente,
+        para que o rodapé seja aritmeticamente a soma do que está à vista.
+
+        Raises:
+            ErroDeDominio: ``PERIODO_INVALIDO`` quando a data inicial é posterior.
+        """
+        if inicio > fim:
+            raise periodo_invalido()
+
+        por_cliente: dict[uuid.UUID, tuple[str, list[LinhaResumoItem]]] = {}
+        for registro in self._repositorio.buscar_resumo_geral(inicio, fim):
+            _, linhas = por_cliente.setdefault(registro.cliente_id, (registro.cliente_nome, []))
+            linhas.append(
+                LinhaResumoItem(
+                    item_id=registro.item_id,
+                    item_nome=registro.item_nome,
+                    valor_unitario=registro.valor_unitario,
+                    quantidade=registro.quantidade,
+                    subtotal=registro.subtotal,
+                )
+            )
+
+        secoes = [
+            SecaoDoCliente(
+                cliente_id=cliente_id,
+                cliente_nome=nome,
+                linhas=_ordenar_resumo(linhas),
+                total_pecas=sum(linha.quantidade for linha in linhas),
+                total_valor=sum((linha.subtotal for linha in linhas), ZERO),
+            )
+            for cliente_id, (nome, linhas) in por_cliente.items()
+        ]
+        secoes.sort(key=lambda secao: _chave_alfabetica(secao.cliente_nome))
+
+        return RelatorioGeral(
+            inicio=inicio,
+            fim=fim,
+            secoes=tuple(secoes),
+            total_pecas=sum(secao.total_pecas for secao in secoes),
+            total_valor=sum((secao.total_valor for secao in secoes), ZERO),
         )
 
     # ------------------------------------------------------------------
@@ -216,3 +269,38 @@ class ServicoRelatorio:
             total_pecas=sum(linha.total_pecas for linha in linhas),
             total_valor=sum((linha.total_valor for linha in linhas), ZERO),
         )
+
+    @staticmethod
+    def _resumo_por_item(
+        registros: Iterable[LinhaDeFechamento],
+    ) -> tuple[LinhaResumoItem, ...]:
+        """Peças e subtotal por (item, valor congelado), para conferência (Req 6.4).
+
+        Mesmo agrupamento do relatório geral: o item a dois valores no período sai
+        em duas linhas. O subtotal soma os totais das linhas de pedido.
+        """
+        grupos: dict[tuple[uuid.UUID, Decimal], list[LinhaDeFechamento]] = {}
+        for registro in registros:
+            grupos.setdefault((registro.item_id, registro.valor_unitario_congelado), []).append(
+                registro
+            )
+
+        return _ordenar_resumo(
+            [
+                LinhaResumoItem(
+                    item_id=item_id,
+                    item_nome=do_grupo[0].item_nome,
+                    valor_unitario=valor,
+                    quantidade=sum(r.quantidade for r in do_grupo),
+                    subtotal=sum((r.total for r in do_grupo), ZERO),
+                )
+                for (item_id, valor), do_grupo in grupos.items()
+            ]
+        )
+
+
+def _ordenar_resumo(linhas: Iterable[LinhaResumoItem]) -> tuple[LinhaResumoItem, ...]:
+    """Por nome do item (sem acento) e, no mesmo item, do menor ao maior valor."""
+    return tuple(
+        sorted(linhas, key=lambda linha: (_chave_alfabetica(linha.item_nome), linha.valor_unitario))
+    )

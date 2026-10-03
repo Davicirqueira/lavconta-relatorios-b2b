@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
-from app.dominio import LinhaDeFechamento, PrecoVigente
+from app.dominio import LinhaDeFechamento, LinhaDoResumoGeral, PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.lancamento import Lancamento, LancamentoLinha
@@ -147,17 +147,25 @@ class RepositorioItemFalso:
 class RepositorioPrecoFalso:
     """Emula ``RepositorioPrecoProtocolo`` em memória.
 
-    A resolução replica em Python o que o ``DISTINCT ON`` faz no banco: entre os
-    preços com vigência até o mês de referência, vence o de vigência mais recente.
+    A resolução replica em Python a regra da consulta SQL (``preco_repo``):
+
+    1. entre os preços com início até a data, o de início mais recente;
+    2. se não houver, o de início mais antigo (o primeiro vale para trás);
+    3. sem nenhum preço: ausente do retorno.
 
     Reimplementar a regra aqui é intencional. Se a consulta SQL e esta versão
-    divergirem, os testes contra Postgres em ``test_constraints.py`` e os de API
-    acusam — e a divergência aponta defeito em uma das duas.
+    divergirem, os testes de API contra Postgres acusam — e a divergência aponta
+    defeito em uma das duas.
+
+    ``pedidos`` simula as linhas de pedido gravadas, só para
+    ``contar_pedidos_afetados``.
     """
 
     def __init__(self) -> None:
-        # (cliente_id, item_id, vigencia_mes) -> Preco
+        # (cliente_id, item_id, vigencia_inicio) -> Preco
         self.registros: dict[tuple[uuid.UUID, uuid.UUID, date], Preco] = {}
+        # (lancamento_id, cliente_id, item_id, data, valor congelado)
+        self.pedidos: list[tuple[uuid.UUID, uuid.UUID, uuid.UUID, date, Decimal]] = []
         self.sincronizacoes = 0
 
     # --- apoio para os testes ---------------------------------------------
@@ -166,64 +174,101 @@ class RepositorioPrecoFalso:
         self,
         cliente_id: uuid.UUID,
         item_id: uuid.UUID,
-        vigencia_mes: date,
+        vigencia_inicio: date,
         valor: str,
     ) -> Preco:
-        return self.inserir(cliente_id, item_id, vigencia_mes, Decimal(valor))
+        return self.inserir(cliente_id, item_id, vigencia_inicio, Decimal(valor))
+
+    def semear_pedido(
+        self, cliente_id: uuid.UUID, item_id: uuid.UUID, data: date, valor: str
+    ) -> uuid.UUID:
+        lancamento_id = uuid.uuid4()
+        self.pedidos.append((lancamento_id, cliente_id, item_id, data, Decimal(valor)))
+        return lancamento_id
 
     # --- contrato ---------------------------------------------------------
+
+    def _escolher(self, cliente_id: uuid.UUID, item_id: uuid.UUID, data: date) -> Preco | None:
+        do_item = [
+            preco
+            for (cli, item, _), preco in self.registros.items()
+            if cli == cliente_id and item == item_id
+        ]
+        if not do_item:
+            return None
+        vigentes = [p for p in do_item if p.vigencia_inicio <= data]
+        if vigentes:
+            return max(vigentes, key=lambda p: p.vigencia_inicio)
+        return min(do_item, key=lambda p: p.vigencia_inicio)
 
     def resolver_vigentes(
         self,
         cliente_id: uuid.UUID,
         item_ids: Sequence[uuid.UUID],
-        mes_referencia: date,
+        data: date,
     ) -> dict[uuid.UUID, PrecoVigente]:
-        if not item_ids:
-            return {}
+        resultado: dict[uuid.UUID, PrecoVigente] = {}
+        for item_id in dict.fromkeys(item_ids):
+            preco = self._escolher(cliente_id, item_id, data)
+            if preco is not None:
+                resultado[item_id] = PrecoVigente(
+                    item_id=item_id,
+                    valor_unitario=preco.valor_unitario,
+                    desde=preco.vigencia_inicio,
+                )
+        return resultado
 
-        procurados = set(item_ids)
-        candidatos: dict[uuid.UUID, Preco] = {}
+    def obter_vigente(self, cliente_id: uuid.UUID, item_id: uuid.UUID, data: date) -> Preco | None:
+        return self._escolher(cliente_id, item_id, data)
 
-        for (cli, item, vigencia), preco in self.registros.items():
-            if cli != cliente_id or item not in procurados or vigencia > mes_referencia:
-                continue
-            atual = candidatos.get(item)
-            if atual is None or vigencia > atual.vigencia_mes:
-                candidatos[item] = preco
+    def obter_no_dia(self, cliente_id: uuid.UUID, item_id: uuid.UUID, dia: date) -> Preco | None:
+        return self.registros.get((cliente_id, item_id, dia))
 
-        return {
-            item_id: PrecoVigente(
-                item_id=item_id,
-                valor_unitario=preco.valor_unitario,
-                vigencia_origem=preco.vigencia_mes,
-            )
-            for item_id, preco in candidatos.items()
-        }
+    def inicios(self, cliente_id: uuid.UUID, item_id: uuid.UUID) -> list[date]:
+        return sorted(
+            inicio for cli, item, inicio in self.registros if cli == cliente_id and item == item_id
+        )
 
-    def obter_do_mes(
-        self, cliente_id: uuid.UUID, item_id: uuid.UUID, vigencia_mes: date
-    ) -> Preco | None:
-        return self.registros.get((cliente_id, item_id, vigencia_mes))
-
-    def existe_algum(self, cliente_id: uuid.UUID, item_id: uuid.UUID) -> bool:
-        return any(cli == cliente_id and item == item_id for cli, item, _ in self.registros)
+    def contar_pedidos_afetados(
+        self,
+        cliente_id: uuid.UUID,
+        item_id: uuid.UUID,
+        *,
+        desde: date | None,
+        ate_exclusivo: date | None,
+        valor_diferente_de: Decimal,
+    ) -> int:
+        return len(
+            {
+                lancamento
+                for lancamento, cli, item, data, valor in self.pedidos
+                if cli == cliente_id
+                and item == item_id
+                and valor != valor_diferente_de
+                and (desde is None or data >= desde)
+                and (ate_exclusivo is None or data < ate_exclusivo)
+            }
+        )
 
     def inserir(
         self,
         cliente_id: uuid.UUID,
         item_id: uuid.UUID,
-        vigencia_mes: date,
+        vigencia_inicio: date,
         valor_unitario: Decimal,
     ) -> Preco:
+        chave = (cliente_id, item_id, vigencia_inicio)
+        if chave in self.registros:
+            # espelha uq_precos_cliente_item_inicio: o serviço nunca deve chegar aqui
+            raise AssertionError(f"preço duplicado no mesmo dia: {chave}")
         preco = Preco(
             cliente_id=cliente_id,
             item_id=item_id,
-            vigencia_mes=vigencia_mes,
+            vigencia_inicio=vigencia_inicio,
             valor_unitario=valor_unitario,
         )
         preco.id = uuid.uuid4()
-        self.registros[(cliente_id, item_id, vigencia_mes)] = preco
+        self.registros[chave] = preco
         return preco
 
     def sincronizar(self) -> None:
@@ -354,6 +399,8 @@ class RepositorioFechamentoFalso:
 
     def __init__(self) -> None:
         self.registros: list[LinhaDeFechamento] = []
+        self.geral: list[LinhaDoResumoGeral] = []
+        self._ids: dict[str, uuid.UUID] = {}
 
     # --- apoio para os testes ---------------------------------------------
 
@@ -390,3 +437,34 @@ class RepositorioFechamentoFalso:
         del cliente_id  # o falso guarda os registros de um cliente só
         encontrados = [registro for registro in self.registros if inicio <= registro.data <= fim]
         return sorted(encontrados, key=lambda registro: (registro.data, registro.item_nome))
+
+    def buscar_resumo_geral(self, inicio: date, fim: date) -> list[LinhaDoResumoGeral]:
+        """Devolve as linhas já agrupadas semeadas com ``semear_geral``.
+
+        O agrupamento em SQL (``GROUP BY``) é coberto contra Postgres em
+        ``test_api_relatorio_geral.py``; aqui está sob teste a montagem das seções.
+        """
+        del inicio, fim
+        return list(self.geral)
+
+    def semear_geral(
+        self,
+        cliente_nome: str,
+        item_nome: str,
+        valor: str,
+        quantidade: int,
+        *,
+        cliente_id: uuid.UUID | None = None,
+    ) -> LinhaDoResumoGeral:
+        unitario = Decimal(valor)
+        linha = LinhaDoResumoGeral(
+            cliente_id=cliente_id or self._ids.setdefault(cliente_nome, uuid.uuid4()),
+            cliente_nome=cliente_nome,
+            item_id=self._ids.setdefault(f"{cliente_nome}/{item_nome}", uuid.uuid4()),
+            item_nome=item_nome,
+            valor_unitario=unitario,
+            quantidade=quantidade,
+            subtotal=unitario * quantidade,
+        )
+        self.geral.append(linha)
+        return linha

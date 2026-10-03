@@ -41,8 +41,8 @@ modelagem devem preservar isso.
 
 - **Usuário único**, equipe interna da Lavandix. Clientes-empresa **não** acessam.
 - Web app completo com API e banco Postgres.
-- Gestão de **clientes**, **catálogo de itens por cliente**, **preços por cliente/mês**
-  e **lançamentos diários**.
+- Gestão de **clientes**, **catálogo de itens por cliente** (com o preço de cada
+  item, que vale até ser alterado) e **lançamentos diários**.
 - Geração de **relatório de fechamento** (detalhado por dia) com exportação em
   **PDF e Excel**.
 

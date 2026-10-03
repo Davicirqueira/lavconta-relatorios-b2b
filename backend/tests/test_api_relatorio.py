@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.erros import CodigoErro
+from tests.conftest import criar_item_api
 
 CAMINHO = "/api/relatorio"
 ID_INEXISTENTE = "11111111-2222-3333-4444-555555555555"
@@ -21,12 +22,7 @@ def cliente_id(api: TestClient) -> str:
 def criar_item_com_preco(
     api: TestClient, cliente_id: str, nome: str, valor: str, mes: str = "2026-06"
 ) -> str:
-    item_id = api.post(f"/api/clientes/{cliente_id}/itens", json={"nome": nome}).json()["id"]
-    api.put(
-        f"/api/clientes/{cliente_id}/precos",
-        json={"item_id": item_id, "vigencia_mes": mes, "valor_unitario": valor},
-    )
-    return item_id
+    return criar_item_api(api, cliente_id, nome, valor, em=f"{mes}-01").json()["id"]
 
 
 @pytest.fixture

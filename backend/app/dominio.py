@@ -10,36 +10,38 @@ import uuid
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from enum import StrEnum
 
 
 @dataclass(frozen=True, slots=True)
 class PrecoVigente:
-    """Preço aplicável a um item num mês de referência.
+    """Preço aplicável a um item numa data.
 
-    ``vigencia_origem`` é o mês em que esse preço foi **definido**, que pode ser
-    anterior ao mês consultado — a vigência se propaga até que um novo preço
-    exista (Req 4.4).
-
-    Expor a origem dá transparência à regra: o operador vê que o preço de
-    setembro veio de junho, em vez de precisar deduzir.
+    ``desde`` é o dia de início do preço aplicado. Pode ser anterior à data
+    consultada (o preço vale até a próxima alteração) ou posterior a ela, quando
+    o item só tem preços que começam depois: o primeiro preço vale também para
+    datas anteriores (v1.1, Req 1.7).
     """
 
     item_id: uuid.UUID
     valor_unitario: Decimal
-    vigencia_origem: date
+    desde: date
 
 
-@dataclass(frozen=True, slots=True)
-class SugestaoDeVigencia:
-    """Mês a propor na interface ao definir preço, e por quê.
+class ModoDeAlteracao(StrEnum):
+    """Como uma alteração de preço é aplicada (v1.1, Req 1.11).
 
-    ``e_primeiro_preco`` vem da consulta ao repositório, não de comparar o mês
-    sugerido com o corrente. Derivar por comparação funcionaria hoje e quebraria
-    em silêncio se a regra de sugestão mudasse.
+    ``A_PARTIR_DE_HOJE``: cria (ou ajusta) o preço com início hoje; pedidos de
+    datas anteriores continuam com o preço antigo.
+
+    ``CORRIGIR_ATUAL``: troca o valor do preço vigente hoje desde o dia em que
+    ele foi definido, sem criar histórico. Serve para erro de digitação.
+
+    Em nenhum dos dois um pedido já gravado muda: o valor dele está congelado.
     """
 
-    vigencia_mes: date
-    e_primeiro_preco: bool
+    A_PARTIR_DE_HOJE = "a_partir_de_hoje"
+    CORRIGIR_ATUAL = "corrigir_atual"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,15 +77,14 @@ class LinhaSolicitada:
 class LinhaCalculada:
     """Uma linha com o valor já congelado e o total.
 
-    ``valor_unitario`` é o preço vigente no mês da data do lançamento, capturado
-    no momento do cálculo. Uma vez gravado, não é recalculado (Req 6.1 a 6.3).
+    ``valor_unitario`` é o preço vigente na data do pedido, capturado no momento
+    do cálculo. Uma vez gravado, não é recalculado (Req 6.1 a 6.3).
     """
 
     item_id: uuid.UUID
     quantidade: int
     valor_unitario: Decimal
     total: Decimal
-    vigencia_origem: date
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +192,24 @@ class ResumoDoRelatorio:
 
 
 @dataclass(frozen=True, slots=True)
+class LinhaResumoItem:
+    """Um item a um valor por peça, somado no período (v1.1, Req 5.2 e 6.4).
+
+    Uma linha por (item, valor congelado): se o preço mudou dentro do período, o
+    mesmo item aparece em duas linhas, uma para cada valor (Req 5.4). Nada é
+    reaplicado — ``subtotal`` é a soma dos totais das linhas de pedido.
+
+    É o que permite ao cliente conferir preço × quantidade no documento.
+    """
+
+    item_id: uuid.UUID
+    item_nome: str
+    valor_unitario: Decimal
+    quantidade: int
+    subtotal: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class Relatorio:
     """Fechamento de um período para um cliente.
 
@@ -207,8 +226,58 @@ class Relatorio:
     linhas: tuple[LinhaDoRelatorio, ...]
     totais: TotaisDoRelatorio
     resumo: ResumoDoRelatorio
+    # v1.1: derivado das mesmas linhas, sem consulta nova
+    resumo_por_item: tuple[LinhaResumoItem, ...] = ()
 
     @property
     def vazio(self) -> bool:
         """Período sem nenhum lançamento (Req 7.13)."""
         return not self.linhas
+
+
+# ---------------------------------------------------------------------------
+# Relatório geral — todos os clientes (v1.1, Req 5)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class LinhaDoResumoGeral:
+    """Uma linha da consulta agrupada: (cliente, item, valor) somados no período."""
+
+    cliente_id: uuid.UUID
+    cliente_nome: str
+    item_id: uuid.UUID
+    item_nome: str
+    valor_unitario: Decimal
+    quantidade: int
+    subtotal: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class SecaoDoCliente:
+    """Um cliente no relatório geral: itens a cada valor e os totais dele."""
+
+    cliente_id: uuid.UUID
+    cliente_nome: str
+    linhas: tuple[LinhaResumoItem, ...]
+    total_pecas: int
+    total_valor: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class RelatorioGeral:
+    """Todos os clientes com pedido no período, e o total geral.
+
+    Mesmo princípio do relatório por cliente: estrutura única para tela, PDF e
+    Excel, e o total geral é a soma dos totais das seções já montadas.
+    """
+
+    inicio: date
+    fim: date
+    secoes: tuple[SecaoDoCliente, ...]
+    total_pecas: int
+    total_valor: Decimal
+
+    @property
+    def vazio(self) -> bool:
+        return not self.secoes

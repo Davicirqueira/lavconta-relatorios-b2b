@@ -125,15 +125,20 @@ def comanda_duplicada(comanda: str) -> ErroDeDominio:
     )
 
 
-def itens_sem_preco(nomes: list[str], mes_ref: str) -> ErroDeDominio:
-    """Erro de item sem preço, nomeando os itens (Req 5.14)."""
+def itens_sem_preco(nomes: list[str]) -> ErroDeDominio:
+    """Erro de item sem preço, nomeando os itens e dizendo o que fazer (v1.1, Req 4.3).
+
+    Sem mês: o preço não é mais por mês, e o item só fica sem preço quando
+    nunca teve nenhum.
+    """
     lista = " e ".join(nomes) if len(nomes) <= 2 else ", ".join(nomes[:-1]) + f" e {nomes[-1]}"
     plural = "os itens" if len(nomes) > 1 else "o item"
     verbo = "têm" if len(nomes) > 1 else "tem"
     return ErroDeDominio(
         CodigoErro.ITENS_SEM_PRECO,
-        f"Não foi possível salvar: {plural} {lista} não {verbo} preço cadastrado para {mes_ref}.",
-        {"itens": nomes, "mes_referencia": mes_ref},
+        f"Não foi possível salvar: {plural} {lista} ainda não {verbo} preço. "
+        "Defina o preço no Catálogo.",
+        {"itens": nomes},
     )
 
 

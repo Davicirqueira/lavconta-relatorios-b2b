@@ -35,11 +35,15 @@ import { formatarInteiro, formatarMoeda } from "@/lib/dinheiro";
 import type { Relatorio } from "@/types/api";
 import { barrasDoPeriodo, tomDaBarra } from "./grafico";
 import {
+  eGeral,
   exportarRelatorio,
+  TODOS_OS_CLIENTES,
   useRelatorio,
+  useRelatorioGeral,
   type FiltroRelatorio,
   type FormatoExportacao,
 } from "./hooks";
+import { RelatorioGeral } from "./RelatorioGeral";
 import pagina from "@/components/Pagina.module.css";
 import tabela from "@/components/TabelaDados.module.css";
 import styles from "./TelaRelatorio.module.css";
@@ -64,7 +68,11 @@ export function TelaRelatorio() {
       : null;
 
   const { data: clientes } = useClientes(true);
-  const relatorio = useRelatorio(aplicado);
+  const geral = eGeral(aplicado);
+  const porCliente = useRelatorio(aplicado);
+  const todos = useRelatorioGeral(aplicado);
+  // o que está em tela: um dos dois, nunca ambos (cada hook só busca no seu caso)
+  const relatorio = geral ? todos : porCliente;
   const [exportando, setExportando] = useState<FormatoExportacao | null>(null);
 
   function gerar(e: FormEvent) {
@@ -92,22 +100,24 @@ export function TelaRelatorio() {
     }
   }
 
-  const dados = relatorio.data;
-  const podeExportar = !!dados && !exportando;
+  const podeExportar = !!relatorio.data && !exportando;
 
   return (
     <div>
       <div className={pagina.cabecalho}>
         <h1 className={pagina.titulo}>Relatório de fechamento</h1>
         <div className={styles.exportar}>
-          <Botao
-            variante="secundario"
-            onClick={() => exportar("pdf")}
-            disabled={!podeExportar}
-            carregando={exportando === "pdf"}
-          >
-            <FileDown size={16} aria-hidden="true" /> Exportar PDF
-          </Botao>
+          {/* PDF do relatório geral entra na Fase 5 (tarefa 22) */}
+          {!geral && (
+            <Botao
+              variante="secundario"
+              onClick={() => exportar("pdf")}
+              disabled={!podeExportar}
+              carregando={exportando === "pdf"}
+            >
+              <FileDown size={16} aria-hidden="true" /> Exportar PDF
+            </Botao>
+          )}
           <Botao
             variante="secundario"
             onClick={() => exportar("excel")}
@@ -127,6 +137,7 @@ export function TelaRelatorio() {
           onChange={(e) => setClienteId(e.target.value)}
           placeholder="Selecione um cliente…"
         >
+          <option value={TODOS_OS_CLIENTES}>Todos os clientes</option>
           {(clientes ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {rotuloCliente(c)}
@@ -162,7 +173,7 @@ export function TelaRelatorio() {
         <EstadoVazio
           icone={<FileBarChart2 size={28} />}
           titulo="Gere a relação de valores"
-          descricao="Selecione o cliente e o período e clique em Gerar relatório. O período padrão é o mês atual."
+          descricao="Escolha um cliente, ou Todos os clientes, e o período. Depois clique em Gerar relatório. O período padrão é o mês atual."
         />
       )}
 
@@ -177,7 +188,8 @@ export function TelaRelatorio() {
         </div>
       )}
 
-      {dados && <ConteudoRelatorio relatorio={dados} />}
+      {geral && todos.data && <RelatorioGeral relatorio={todos.data} />}
+      {!geral && porCliente.data && <ConteudoRelatorio relatorio={porCliente.data} />}
     </div>
   );
 }

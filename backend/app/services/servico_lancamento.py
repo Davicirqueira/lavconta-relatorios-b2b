@@ -28,7 +28,7 @@ from typing import NoReturn
 from sqlalchemy.exc import IntegrityError
 
 from app.core.banco import nome_da_constraint_violada
-from app.core.datas import hoje_sp, mes_como_texto
+from app.core.datas import hoje_sp
 from app.core.erros import (
     CodigoErro,
     ErroDeDominio,
@@ -57,26 +57,6 @@ from app.services.servico_preco import ServicoPreco
 
 CONSTRAINT_CLIENTE_DATA = "uq_lancamentos_cliente_data"
 INDICE_COMANDA_UNICA = "ix_lancamentos_comanda_unica_por_cliente"
-
-MESES = (
-    "janeiro",
-    "fevereiro",
-    "março",
-    "abril",
-    "maio",
-    "junho",
-    "julho",
-    "agosto",
-    "setembro",
-    "outubro",
-    "novembro",
-    "dezembro",
-)
-
-
-def _mes_em_portugues(referencia: date) -> str:
-    """Formata o mês para a mensagem ao operador: ``setembro/2026``."""
-    return f"{MESES[referencia.month - 1]}/{referencia.year}"
 
 
 def _data_em_portugues(referencia: date) -> str:
@@ -111,9 +91,9 @@ class ServicoLancamento:
         """Resolve preços e calcula linhas e totais.
 
         Args:
-            data: data do lançamento. **É ela** que define o mês da resolução,
-                nunca a data corrente — senão um lançamento retroativo receberia
-                o preço do mês errado (Req 4.7).
+            data: data do pedido. **É ela** que define o preço resolvido, nunca a
+                data corrente — senão um pedido retroativo receberia o preço de
+                outra época (v1.1, Req 1.3).
             congelados: valores já congelados de linhas preexistentes. Quando
                 informado para um item, o preço **não é resolvido de novo**: a
                 edição corrige o registro do pedido, não renegocia o preço
@@ -134,15 +114,12 @@ class ServicoLancamento:
         for solicitada in solicitadas:
             if solicitada.item_id in congelados:
                 valor = congelados[solicitada.item_id]
-                # linha preexistente: a origem da vigência não é reconsultada
-                origem = data.replace(day=1)
             else:
                 vigente = resolucao.vigentes.get(solicitada.item_id)
                 if vigente is None:
                     faltantes.append(solicitada.item_id)
                     continue
                 valor = vigente.valor_unitario
-                origem = vigente.vigencia_origem
 
             # numeric(10,2) × inteiro é exato: não há dízima nem arredondamento
             total = valor * solicitada.quantidade
@@ -152,7 +129,6 @@ class ServicoLancamento:
                     quantidade=solicitada.quantidade,
                     valor_unitario=valor,
                     total=total,
-                    vigencia_origem=origem,
                 )
             )
 
@@ -189,7 +165,7 @@ class ServicoLancamento:
         calculo = self._resolver_e_calcular(cliente_id, data, solicitadas)
         if not calculo.completo:
             nomes = [itens[item_id].nome for item_id in calculo.itens_sem_preco]
-            raise itens_sem_preco(nomes, _mes_em_portugues(data))
+            raise itens_sem_preco(nomes)
 
         # Validação prévia dá mensagem amigável; a constraint é a garantia real
         # contra condição de corrida. As duas juntas resolvem.
@@ -261,7 +237,7 @@ class ServicoLancamento:
         calculo = self._resolver_e_calcular(cliente_final, data, solicitadas, congelados=congelados)
         if not calculo.completo:
             nomes = [itens[item_id].nome for item_id in calculo.itens_sem_preco]
-            raise itens_sem_preco(nomes, _mes_em_portugues(data))
+            raise itens_sem_preco(nomes)
 
         self._validar_unicidade_na_edicao(lancamento, cliente_final, data, comanda_normalizada)
 
@@ -488,7 +464,3 @@ class ServicoLancamento:
         if inicio > fim:
             raise periodo_invalido()
         return self._repositorio.listar_por_periodo(cliente_id, inicio, fim)
-
-    def mes_de_referencia(self, data: date) -> str:
-        """Mês usado na resolução de preço, no formato do contrato da API."""
-        return mes_como_texto(data)

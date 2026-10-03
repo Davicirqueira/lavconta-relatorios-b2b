@@ -175,3 +175,25 @@ class TestExportacaoExcel:
         assert ws.cell(row=5, column=1).value == "Totais"
         assert ws.cell(row=5, column=3).value == 0
         assert ws.cell(row=5, column=4).value == 0.0
+
+
+class TestNomeDeAba:
+    """Excel recusa []:*?/\\ e mais de 31 caracteres; nomes não podem repetir."""
+
+    def test_remove_caracteres_proibidos_e_corta(self) -> None:
+        from app.exports.excel import nome_de_aba
+
+        nome = nome_de_aba("Hotel: Aurora / Filial [Centro] * 2026 com nome bem longo", set())
+
+        assert len(nome) <= 31
+        assert not set(nome) & set("[]:*?/\\")
+
+    def test_nomes_repetidos_ganham_sufixo(self) -> None:
+        from app.exports.excel import nome_de_aba
+
+        usados = {"resumo"}
+        primeiro = nome_de_aba("Hotel Aurora", usados)
+        segundo = nome_de_aba("hotel aurora", usados)
+        resumo = nome_de_aba("Resumo", usados)
+
+        assert (primeiro, segundo, resumo) == ("Hotel Aurora", "hotel aurora (2)", "Resumo (2)")

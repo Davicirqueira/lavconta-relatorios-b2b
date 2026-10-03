@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { Pencil, Plus, Power, PowerOff, Shirt, Trash2 } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Power, PowerOff, Shirt, Tag, Trash2 } from "lucide-react";
 import { Botao } from "@/components/Botao";
 import { Selecao } from "@/components/Selecao";
 import {
@@ -20,9 +20,11 @@ import { EstadoVazio } from "@/components/EstadoVazio";
 import { DialogoConfirmacao } from "@/components/DialogoConfirmacao";
 import { useToast } from "@/components/Toast";
 import { ErroDeApi } from "@/lib/api";
+import { formatarMoeda } from "@/lib/dinheiro";
 import { useClientes } from "@/features/clientes/hooks";
 import type { Item } from "@/types/api";
 import {
+  useAlterarPreco,
   useCriarItem,
   useExcluirItem,
   useInativarItem,
@@ -30,7 +32,7 @@ import {
   useReativarItem,
   useRenomearItem,
 } from "./hooks";
-import { FormularioItem } from "./FormularioItem";
+import { FormularioItem, type DadosDoItem } from "./FormularioItem";
 import pagina from "@/components/Pagina.module.css";
 
 export function TelaCatalogo() {
@@ -44,6 +46,7 @@ export function TelaCatalogo() {
   const { data: itens, isLoading, isError, refetch } = useItens(clienteId, incluirInativos);
   const criarItem = useCriarItem(clienteId);
   const renomearItem = useRenomearItem();
+  const alterarPreco = useAlterarPreco();
   const inativarItem = useInativarItem();
   const reativarItem = useReativarItem();
   const excluirItem = useExcluirItem();
@@ -52,14 +55,35 @@ export function TelaCatalogo() {
   const clienteSelecionado = (clientes ?? []).find((c) => c.id === clienteId);
   const lista = itens ?? [];
 
-  async function handleSalvar(nome: string) {
-    if (itemEditando) {
-      await renomearItem.mutateAsync({ id: itemEditando.id, nome });
-      mostrar("Item renomeado.", "sucesso");
-    } else {
-      await criarItem.mutateAsync(nome);
+  async function handleSalvar({ nome, valorUnitario, modo }: DadosDoItem) {
+    if (!itemEditando) {
+      // o formulário só chama sem valor quando o preço não mudou, o que não
+      // existe na criação
+      await criarItem.mutateAsync({ nome, valor_unitario: valorUnitario ?? "" });
       mostrar("Item criado.", "sucesso");
+      return;
     }
+
+    const renomeou = nome !== itemEditando.nome;
+    if (renomeou) await renomearItem.mutateAsync({ id: itemEditando.id, nome });
+    if (valorUnitario) {
+      await alterarPreco.mutateAsync({ id: itemEditando.id, valor_unitario: valorUnitario, modo });
+    }
+    mostrar(
+      valorUnitario
+        ? modo === "corrigir_atual"
+          ? "Preço corrigido."
+          : "Preço atualizado. Vale a partir de hoje."
+        : renomeou
+          ? "Item atualizado."
+          : "Nada foi alterado.",
+      valorUnitario || renomeou ? "sucesso" : "info",
+    );
+  }
+
+  function abrirEdicao(item: Item) {
+    setItemEditando(item);
+    setFormularioAberto(true);
   }
 
   async function handleInativar(item: Item) {
@@ -106,7 +130,10 @@ export function TelaCatalogo() {
       <div className={pagina.cabecalho}>
         <div>
           <h1 className={pagina.titulo}>Catálogo de itens</h1>
-          <p className={pagina.subtitulo}>Tipos de peça que cada cliente envia, cobrados por peça.</p>
+          <p className={pagina.subtitulo}>
+            Tipos de peça que cada cliente envia e o preço de cada uma. O preço vale até você
+            mudar.
+          </p>
         </div>
         {clienteId && (
           <div className={pagina.controles}>
@@ -173,7 +200,7 @@ export function TelaCatalogo() {
         <EstadoVazio
           icone={<Shirt size={28} />}
           titulo="Nenhum item cadastrado"
-          descricao={`Cadastre os itens que ${clienteSelecionado?.nome ?? "este cliente"} envia, como lençol, fronha e toalha.`}
+          descricao={`Cadastre os itens que ${clienteSelecionado?.nome ?? "este cliente"} envia, como lençol, fronha e toalha, com o preço por peça.`}
           rotuloBotao="Novo item"
           onAcao={abrirNovoItem}
         />
@@ -188,15 +215,28 @@ export function TelaCatalogo() {
               titulo={item.nome}
               ativo={item.ativo}
               marca={<Shirt size={20} />}
+              detalhe={
+                item.preco_atual ? (
+                  `${formatarMoeda(item.preco_atual.valor_unitario)} por peça`
+                ) : (
+                  <>
+                    <AlertTriangle size={12} aria-hidden="true" /> Sem preço
+                  </>
+                )
+              }
+              detalheEmAlerta={!item.preco_atual}
               acoes={[
-                {
-                  rotulo: "Renomear",
-                  icone: <Pencil size={14} aria-hidden="true" />,
-                  aoClicar: () => {
-                    setItemEditando(item);
-                    setFormularioAberto(true);
-                  },
-                },
+                item.preco_atual
+                  ? {
+                      rotulo: "Editar",
+                      icone: <Pencil size={14} aria-hidden="true" />,
+                      aoClicar: () => abrirEdicao(item),
+                    }
+                  : {
+                      rotulo: "Definir preço",
+                      icone: <Tag size={14} aria-hidden="true" />,
+                      aoClicar: () => abrirEdicao(item),
+                    },
                 item.ativo
                   ? {
                       rotulo: "Inativar",

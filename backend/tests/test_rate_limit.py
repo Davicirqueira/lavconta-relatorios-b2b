@@ -18,6 +18,7 @@ ESTRATÉGIA
     presente. Cria-se um mini-app isolado aqui.
 """
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
@@ -126,3 +127,54 @@ class TestLimitesDistintos:
 
         assert limiter._route_limits.get(nome_excel), "Excel não tem limite registrado"
         assert limiter._route_limits.get(nome_pdf), "PDF não tem limite registrado"
+
+    def test_exportacao_geral_tem_limite_registrado(self) -> None:
+        from app.routers.relatorio import exportar_excel_geral, exportar_pdf_geral
+
+        for rota in (exportar_excel_geral, exportar_pdf_geral):
+            nome = f"{rota.__module__}.{rota.__qualname__}"
+            limites = limiter._route_limits.get(nome)
+            assert limites, f"{rota.__name__} não tem limite registrado"
+            assert max(lim.limit.amount for lim in limites) == 30
+
+
+class TestLimiteNasRotasDeCatalogoEPreco:
+    """v1.1 (tarefa 9): escritas de item e de preço limitadas a 60/min.
+
+    Usa item inexistente: o limite é contado antes de o endpoint executar, então
+    cada chamada conta mesmo respondendo 404, sem gravar nada no banco.
+    """
+
+    ITEM_INEXISTENTE = "11111111-2222-3333-4444-555555555555"
+
+    @pytest.mark.parametrize(
+        ("metodo", "caminho", "corpo"),
+        [
+            ("delete", "/api/itens/{id}", None),
+            ("post", "/api/itens/{id}/inativar", None),
+            ("patch", "/api/itens/{id}", {"nome": "Lençol"}),
+            ("put", "/api/itens/{id}/preco", {"valor_unitario": "4.50"}),
+        ],
+    )
+    def test_61a_chamada_recebe_429(
+        self, api, metodo: str, caminho: str, corpo: dict | None
+    ) -> None:  # noqa: ANN001
+        url = caminho.format(id=self.ITEM_INEXISTENTE)
+        chamar = getattr(api, metodo)
+        argumentos = {"json": corpo} if corpo is not None else {}
+
+        respostas = [chamar(url, **argumentos).status_code for _ in range(60)]
+        excedente = chamar(url, **argumentos)
+
+        assert set(respostas) == {404}
+        assert excedente.status_code == 429
+        assert excedente.json()["erro"]["codigo"] == CodigoErro.MUITAS_REQUISICOES.value
+
+    def test_criar_item_e_limitado(self, api) -> None:  # noqa: ANN001
+        url = f"/api/clientes/{self.ITEM_INEXISTENTE}/itens"
+        corpo = {"nome": "Lençol", "valor_unitario": "4.50"}
+
+        respostas = [api.post(url, json=corpo).status_code for _ in range(60)]
+
+        assert set(respostas) == {404}
+        assert api.post(url, json=corpo).status_code == 429

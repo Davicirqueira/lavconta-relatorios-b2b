@@ -37,7 +37,7 @@ inclusion: always
   telas de cliente/catálogo/preço, disparo de exportação. Não contém regra de
   cálculo autoritativa — exibe o que a API retorna.
 - **Backend (FastAPI):** autoridade sobre as regras de negócio — cálculo de totais,
-  congelamento de valor no lançamento, resolução do preço vigente por mês, validação
+  congelamento de valor no lançamento, resolução do preço vigente por data, validação
   da unicidade (cliente, data) e (cliente, comanda), geração de relatório e dos
   arquivos PDF/Excel.
 - **Banco (Postgres):** persistência. Restrições de integridade (unicidade,
@@ -53,9 +53,10 @@ inclusion: always
 ## Regras de implementação derivadas do negócio
 
 - **Congelar o valor unitário** de cada item no lançamento no momento da criação
-  (com base no preço vigente do mês). Relatórios passados nunca mudam.
-- **Resolução de preço** por (cliente, item, mês/ano). Alteração de preço no meio do
-  mês só vale a partir do mês seguinte.
+  (com base no preço vigente na data do pedido). Relatórios passados nunca mudam.
+- **Resolução de preço** por (cliente, item, data do pedido): o preço com a maior
+  data de início menor ou igual à data do pedido. A alteração começa a valer no dia
+  em que é feita (data de hoje no fuso de São Paulo, calculada no backend).
 - **Unicidade (cliente, data)**: reforçar tanto na API quanto por constraint no banco.
 - **Comanda opcional, única por cliente quando preenchida**: reforçar por constraint
   parcial no banco (unicidade que ignora valores nulos).

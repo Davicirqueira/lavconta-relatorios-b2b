@@ -6,12 +6,13 @@ float formatado como moeda), permitindo conferência e soma no próprio Excel (R
 """
 
 import io
+import re
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from app.dominio import Relatorio
+from app.dominio import Relatorio, RelatorioGeral
 
 # Cores da identidade visual (mesmos valores de frontend/src/styles/tokens.css)
 COR_AZUL_900 = "0B2F58"
@@ -195,6 +196,151 @@ def gerar_excel(relatorio: Relatorio) -> bytes:
 
     # 6. Congelar a primeira linha da tabela (linha 5 começa os dados roláveis)
     ws.freeze_panes = "A5"
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Relatório geral — todos os clientes (v1.1, Req 5.6)
+# ---------------------------------------------------------------------------
+
+# Excel recusa estes caracteres em nome de aba e limita a 31 caracteres
+_PROIBIDOS_NA_ABA = re.compile(r"[\[\]:*?/\\]")
+LIMITE_NOME_ABA = 31
+NOME_ABA_RESUMO = "Resumo"
+
+
+def nome_de_aba(nome: str, usados: set[str]) -> str:
+    """Nome de aba válido e único (comparação sem caixa, como o Excel faz).
+
+    Remove os caracteres proibidos, corta em 31 e, se repetir, acrescenta
+    " (2)", " (3)"… sem ultrapassar o limite.
+    """
+    base = _PROIBIDOS_NA_ABA.sub(" ", nome).strip().strip("'") or "Cliente"
+    base = base[:LIMITE_NOME_ABA].rstrip()
+    candidato = base
+    contador = 2
+    while candidato.casefold() in usados:
+        sufixo = f" ({contador})"
+        candidato = base[: LIMITE_NOME_ABA - len(sufixo)].rstrip() + sufixo
+        contador += 1
+    usados.add(candidato.casefold())
+    return candidato
+
+
+class _Estilos:
+    """Estilos do relatório geral, os mesmos do relatório por cliente."""
+
+    titulo = Font(name="Inter", size=12, bold=True, color=COR_AZUL_900)
+    periodo = Font(name="Inter", size=10, color=COR_GELO_600)
+    cabecalho = Font(name="Inter", size=10, bold=True, color=COR_GELO_900)
+    dados = Font(name="Inter", size=10, color=COR_GELO_900)
+    totais = Font(name="Inter", size=10, bold=True, color=COR_AZUL_900)
+    fundo_cabecalho = PatternFill(
+        start_color=COR_GELO_100, end_color=COR_GELO_100, fill_type="solid"
+    )
+    fundo_totais = PatternFill(start_color=COR_GELO_50, end_color=COR_GELO_50, fill_type="solid")
+    _fina = Side(style="thin", color=COR_GELO_300)
+    borda = Border(left=_fina, right=_fina, top=_fina, bottom=_fina)
+    borda_totais = Border(
+        left=_fina,
+        right=_fina,
+        top=Side(style="medium", color=COR_AZUL_900),
+        bottom=Side(style="double", color=COR_AZUL_900),
+    )
+    esquerda = Alignment(horizontal="left", vertical="center")
+    direita = Alignment(horizontal="right", vertical="center")
+
+
+def _tabela(ws, linha_inicial: int, titulos: list[str], linhas: list[list], total: list) -> None:  # noqa: ANN001
+    """Escreve cabeçalho, linhas e total. Texto à esquerda; número à direita."""
+    e = _Estilos
+
+    def escrever(linha: int, valores: list, fonte, fundo=None, borda=e.borda) -> None:  # noqa: ANN001
+        for coluna, valor in enumerate(valores, start=1):
+            celula = ws.cell(row=linha, column=coluna, value=valor)
+            celula.font = fonte
+            celula.border = borda
+            if fundo is not None:
+                celula.fill = fundo
+            # só a primeira coluna é texto (cliente ou item); as demais são números
+            celula.alignment = e.esquerda if coluna == 1 else e.direita
+            if isinstance(valor, float):
+                celula.number_format = FORMATO_MOEDA
+
+    escrever(linha_inicial, titulos, e.cabecalho, e.fundo_cabecalho)
+    for deslocamento, valores in enumerate(linhas, start=1):
+        escrever(linha_inicial + deslocamento, valores, e.dados)
+    escrever(linha_inicial + len(linhas) + 1, total, e.totais, e.fundo_totais, e.borda_totais)
+
+    for coluna in range(1, len(titulos) + 1):
+        letra = get_column_letter(coluna)
+        maior = max(
+            len(_texto_da_celula(ws.cell(row=r, column=coluna).value))
+            for r in range(linha_inicial, linha_inicial + len(linhas) + 2)
+        )
+        ws.column_dimensions[letra].width = max(maior + 4, 12)
+    ws.freeze_panes = ws.cell(row=linha_inicial + 1, column=1)
+
+
+def _texto_da_celula(valor: object) -> str:
+    if valor is None:
+        return ""
+    if isinstance(valor, float):
+        return f"R$ {valor:,.2f}"
+    return str(valor)
+
+
+def gerar_excel_geral(relatorio: RelatorioGeral) -> bytes:
+    """Planilha do relatório geral: aba "Resumo" e uma aba por cliente.
+
+    Os números são os da estrutura já calculada; nada é somado aqui além de
+    transcrever. Dinheiro vai como número formatado em R$ (como no relatório por
+    cliente), para o operador poder somar e conferir no próprio Excel.
+    """
+    e = _Estilos
+    wb = Workbook()
+    periodo = (
+        f"Período: {relatorio.inicio.strftime('%d/%m/%Y')} a {relatorio.fim.strftime('%d/%m/%Y')}"
+    )
+
+    resumo = wb.active
+    resumo.title = NOME_ABA_RESUMO
+    resumo.cell(row=1, column=1, value="Todos os clientes").font = e.titulo
+    resumo.cell(row=2, column=1, value=periodo).font = e.periodo
+    _tabela(
+        resumo,
+        4,
+        ["Cliente", "Peças", "Total R$"],
+        [
+            [secao.cliente_nome, int(secao.total_pecas), float(secao.total_valor)]
+            for secao in relatorio.secoes
+        ],
+        ["Total geral", int(relatorio.total_pecas), float(relatorio.total_valor)],
+    )
+
+    usados = {NOME_ABA_RESUMO.casefold()}
+    for secao in relatorio.secoes:
+        aba = wb.create_sheet(nome_de_aba(secao.cliente_nome, usados))
+        aba.cell(row=1, column=1, value=f"Cliente: {secao.cliente_nome}").font = e.titulo
+        aba.cell(row=2, column=1, value=periodo).font = e.periodo
+        _tabela(
+            aba,
+            4,
+            ["Item", "Por peça", "Peças", "Subtotal"],
+            [
+                [
+                    linha.item_nome,
+                    float(linha.valor_unitario),
+                    int(linha.quantidade),
+                    float(linha.subtotal),
+                ]
+                for linha in secao.linhas
+            ],
+            ["Total", None, int(secao.total_pecas), float(secao.total_valor)],
+        )
 
     buffer = io.BytesIO()
     wb.save(buffer)

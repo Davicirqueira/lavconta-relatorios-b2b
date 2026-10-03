@@ -173,7 +173,7 @@ class TestExclusao:
     def test_exclusao_leva_o_catalogo(self, api: TestClient) -> None:
         """Sem histórico, a exclusão remove também itens e preços (Req 2.10)."""
         cliente = criar(api, "Hotel Aurora").json()["id"]
-        api.post(f"{CAMINHO}/{cliente}/itens", json={"nome": "Lençol"})
+        api.post(f"{CAMINHO}/{cliente}/itens", json={"nome": "Lençol", "valor_unitario": "4.50"})
 
         assert api.delete(f"{CAMINHO}/{cliente}").status_code == 204
         assert api.get(f"{CAMINHO}/{cliente}/itens").status_code == 404

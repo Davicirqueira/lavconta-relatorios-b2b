@@ -22,12 +22,30 @@ Não deduzir regras novas a partir de imagens/planilhas sem confirmação.
 ## Preços
 
 - Preço é **por cliente + item**.
-- **Vigência mensal**: o preço definido para um mês vale do dia 1 ao último dia
-  daquele mês.
-- Se o preço for alterado no meio do mês (ex: dia 15/08), o valor que valia naquele
-  mês **permanece até o fim do mês**; a alteração só passa a valer **a partir do mês
-  seguinte**.
-- Indexação lógica do preço: **(cliente, item, mês/ano)**.
+- **O preço persiste:** depois de definido, vale até ser alterado, mesmo que o mês
+  vire. O usuário **não** precisa redefinir preços a cada mês (a troca real acontece
+  cerca de 1 a 2 vezes por ano).
+- **A alteração vale a partir do dia em que é feita** (data de hoje no fuso de São
+  Paulo, definida pelo sistema; o usuário não informa data de início).
+  - Pedidos com data **anterior** ao dia da alteração continuam com o preço antigo.
+  - Pedidos com data **igual ou posterior** usam o preço novo.
+- **O preço é escolhido pela data do pedido**, nunca pela data em que o pedido foi
+  digitado. Ex.: preço alterado no dia 10; um pedido do dia 5 lançado no dia 12 usa
+  o preço antigo.
+- **Duas alterações no mesmo dia:** a segunda corrige a primeira (não cria histórico
+  novo para aquele dia).
+- **O primeiro preço de um item vale também para datas anteriores** à sua criação
+  (não há preço anterior a preservar). Assim, item novo pode entrar em pedido
+  retroativo.
+- **Correção de erro de digitação:** o operador pode **corrigir o preço atual**
+  desde o dia em que ele foi definido (em vez de criar um novo a partir de hoje).
+  Pedidos já registrados **não** mudam; o sistema avisa quantos mantêm o valor
+  anterior antes de confirmar.
+- O histórico de preços é **preservado** no banco. Exibir esse histórico na
+  interface está **fora do escopo** até decisão do cliente.
+- Indexação lógica do preço: **(cliente, item, data de início)**.
+- **Onde o preço é definido:** no **Catálogo**, junto com o item (ao criar e ao
+  editar). Não existe tela separada de preços.
 
 ## Lançamento diário (pedido)
 
@@ -62,7 +80,8 @@ Não deduzir regras novas a partir de imagens/planilhas sem confirmação.
 ## Congelamento de valor (estabilidade histórica)
 
 - No momento em que um lançamento é criado, o **valor unitário de cada item é
-  gravado (congelado) no próprio lançamento**, com base no preço vigente daquele mês.
+  gravado (congelado) no próprio lançamento**, com base no preço vigente na **data do
+  pedido**.
 - Consequência: alterar o preço depois **não altera** lançamentos/relatórios
   passados. Relatórios antigos permanecem estáveis.
 
@@ -78,9 +97,9 @@ Não deduzir regras novas a partir de imagens/planilhas sem confirmação.
 - **Período de fechamento é customizável** via seleção de datas (dd/mm/yyyy).
   - **Default:** 1º dia do mês vigente até o último dia do mês vigente.
   - O usuário pode modificar o intervalo livremente (inclusive cruzando meses).
-- Como o preço tem vigência mensal e o período pode cruzar meses, cada lançamento
-  entra no relatório com **seu próprio valor congelado** (o preço do mês em que foi
-  criado). O relatório soma lançamentos, não reaplica um preço único do período.
+- Como o preço pode mudar dentro do período, cada lançamento entra no relatório com
+  **seu próprio valor congelado** (o preço vigente na data do pedido). O relatório
+  soma lançamentos, não reaplica um preço único do período.
 
 ## Exportação
 

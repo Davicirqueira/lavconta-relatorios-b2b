@@ -393,7 +393,7 @@ Referências `_Requisitos: X.Y_` apontam para `requirements.md`.
   - Documentar no `README` quais variáveis configurar em cada plataforma
   - _Requisitos: 9.1, 9.3, 9.4_
 
-- [ ] 51. Verificação final ponta a ponta
+- [x] 51. Verificação final ponta a ponta
   - Rodar build e a suíte completa de backend e frontend
   - Conferir manualmente o fluxo crítico: cadastrar cliente, item e preço; lançar pedido;
     gerar relatório; exportar PDF e Excel

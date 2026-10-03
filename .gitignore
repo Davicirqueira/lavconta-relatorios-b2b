@@ -51,3 +51,9 @@ dist-ssr/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ==========================================================================
+# Verificação no navegador (Playwright MCP): capturas e logs podem conter
+# dados de clientes e tokens — não versionar
+# ==========================================================================
+.playwright-mcp/

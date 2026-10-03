@@ -3,16 +3,26 @@
  *
  * O relatório chega pronto: `resumo` (cartões) e `totais` (rodapé) saem da
  * mesma agregação no backend. A tela só exibe — nunca soma (defeito B1).
+ *
+ * v1.1: "Todos os clientes" é o valor `TODOS_OS_CLIENTES` no filtro; ele usa as
+ * rotas `/api/relatorio/geral*`, com contrato próprio.
  */
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { apiDownload, apiGet, ErroDeApi } from "@/lib/api";
-import type { Relatorio } from "@/types/api";
+import type { Relatorio, RelatorioGeral } from "@/types/api";
+
+/** Valor do seletor de cliente (e da URL) para o relatório geral. */
+export const TODOS_OS_CLIENTES = "todos";
 
 export interface FiltroRelatorio {
   clienteId: string;
   inicio: string;
   fim: string;
+}
+
+export function eGeral(filtro: FiltroRelatorio | null): boolean {
+  return filtro?.clienteId === TODOS_OS_CLIENTES;
 }
 
 export function useRelatorio(
@@ -26,8 +36,20 @@ export function useRelatorio(
         inicio: filtro!.inicio,
         fim: filtro!.fim,
       }),
-    enabled: !!filtro,
+    enabled: !!filtro && !eGeral(filtro),
     // fechamento precisa refletir o estado atual dos lançamentos
+    staleTime: 0,
+  });
+}
+
+export function useRelatorioGeral(
+  filtro: FiltroRelatorio | null,
+): UseQueryResult<RelatorioGeral, ErroDeApi> {
+  return useQuery({
+    queryKey: ["relatorio-geral", filtro?.inicio, filtro?.fim],
+    queryFn: () =>
+      apiGet<RelatorioGeral>("/api/relatorio/geral", { inicio: filtro!.inicio, fim: filtro!.fim }),
+    enabled: eGeral(filtro),
     staleTime: 0,
   });
 }
@@ -38,7 +60,8 @@ const EXTENSAO: Record<FormatoExportacao, string> = { pdf: "pdf", excel: "xlsx" 
 
 /** Nome usado só se o servidor não informar o nome do arquivo. */
 function nomeReserva(filtro: FiltroRelatorio, formato: FormatoExportacao): string {
-  return `fechamento-${filtro.inicio}-a-${filtro.fim}.${EXTENSAO[formato]}`;
+  const prefixo = eGeral(filtro) ? "fechamento-todos-os-clientes" : "fechamento";
+  return `${prefixo}-${filtro.inicio}-a-${filtro.fim}.${EXTENSAO[formato]}`;
 }
 
 /**
@@ -51,17 +74,23 @@ export async function exportarRelatorio(
   filtro: FiltroRelatorio,
   formato: FormatoExportacao,
 ): Promise<void> {
-  const { blob, nomeArquivo } = await apiDownload(`/api/relatorio/${formato}`, {
-    cliente_id: filtro.clienteId,
-    inicio: filtro.inicio,
-    fim: filtro.fim,
-  });
+  const { blob, nomeArquivo } = eGeral(filtro)
+    ? await apiDownload(`/api/relatorio/geral/${formato}`, {
+        inicio: filtro.inicio,
+        fim: filtro.fim,
+      })
+    : await apiDownload(`/api/relatorio/${formato}`, {
+        cliente_id: filtro.clienteId,
+        inicio: filtro.inicio,
+        fim: filtro.fim,
+      });
 
   const url = URL.createObjectURL(blob);
   try {
     const ancora = document.createElement("a");
     ancora.href = url;
-    ancora.download = nomeArquivo && nomeArquivo !== "arquivo" ? nomeArquivo : nomeReserva(filtro, formato);
+    ancora.download =
+      nomeArquivo && nomeArquivo !== "arquivo" ? nomeArquivo : nomeReserva(filtro, formato);
     document.body.appendChild(ancora);
     ancora.click();
     ancora.remove();
