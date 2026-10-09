@@ -222,8 +222,9 @@ conferida no navegador com `lavconta_dev` quando houver UI (skill `design-de-int
   - 02/10: servidor **Postgres 17.6** → backup exige `pg_dump` 17 (o local é 16).
     **46 preços**, dos quais **4 com início futuro** (01/11/2026), todos com o
     mesmo valor do preço anterior (BONEVILE Lençol 1,90; PAULISTA Lençol, Piso e
-    Toalha 2,10), criados em 02/10 pela tela da v1. Não alteram cobrança; apagar
-    é opcional e fica para depois. `pg_dump` 17.11 instalado via winget (só
+    Toalha 2,10), criados em 02/10 pela tela da v1. Não alteravam cobrança.
+    Apagados a pedido do usuário em 02/10, após a migração e o deploy (DELETE
+    com trava de exatamente 4): 46 → 42 preços, nenhum com início futuro. `pg_dump` 17.11 instalado via winget (só
     ferramentas). Backup: `C:\Users\Pichau\lavconta-backup\antes-v11-20261002-2100.dump`
     (371 KB, `pg_restore -l` lista clientes, lancamentos e precos)
   - _Req 2.5 · §1.5, §2_
@@ -236,11 +237,11 @@ conferida no navegador com `lavconta_dev` quando houver UI (skill `design-de-int
   - Combinar a janela: não editar preços até o deploy terminar
   - _Req 2.5, 2.6 · §2_
 
-- [ ] 27. Deploy do código
-  - Commit e push (pelo usuário ou a pedido dele) → CI verde → Render e Netlify
-  - Conferir de fora: saúde da API, 401 sem token, CORS, `/precos` redireciona
-  - Fluxo crítico em produção com um item de teste; limpar depois
-  - _Req 1–6_
+- [x] 27. Deploy do código
+  - 02/10 21h05: commit `6f2188c`, CI verde, Netlify publicado. Conferido de fora:
+    saúde 200, rotas novas da v1.1 respondem 401, CORS aceita só o Netlify.
+  - 02/10 (fix): commit `9cfe512` — botão "Exportar PDF" escondido no relatório
+    geral (`{!geral && ...}`, placeholder da Fase 5 não removido). Corrigido.
 
 - [ ] 28. Migração de fase 2 (contract) — depois do código estável
   - Revisão `v11_remove_vigencia_mes` (remove `vigencia_mes`, CHECK e índice antigos)

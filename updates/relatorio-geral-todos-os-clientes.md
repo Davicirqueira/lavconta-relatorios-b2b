@@ -1,1 +1,0 @@
-Opção "Todos os clientes" para o relatório, a relação de todos os clientes, com os itens e o valor total (no período escolhido, acredito que essa informação seja óbvia, mas vale)
