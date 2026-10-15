@@ -26,6 +26,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from app.core.erros import nao_encontrado, periodo_invalido
 from app.dominio import (
     ColunaDeItem,
+    LinhaDeDemandaDiaria,
+    LinhaDaDemandaDiariaRepo,
     LinhaDeFechamento,
     LinhaDoRelatorio,
     LinhaResumoItem,
@@ -152,6 +154,9 @@ class ServicoRelatorio:
         Uma seção por cliente (item · valor por peça · peças · subtotal) e o total
         geral. Clientes sem pedido não aparecem; inativos com pedido, sim.
 
+        Fase 6 (v1.1): inclui tabela de demanda diária consolidada (todos os
+        clientes somados por data, como a tabela individual) e as colunas de itens.
+
         O total de cada seção é a soma das suas linhas, e o total geral é a soma
         das seções já montadas — o mesmo encadeamento do relatório por cliente,
         para que o rodapé seja aritmeticamente a soma do que está à vista.
@@ -162,7 +167,10 @@ class ServicoRelatorio:
         if inicio > fim:
             raise periodo_invalido()
 
+        # Montar seções por cliente e mapear nomes de itens
         por_cliente: dict[uuid.UUID, tuple[str, list[LinhaResumoItem]]] = {}
+        nomes_itens: dict[uuid.UUID, str] = {}
+
         for registro in self._repositorio.buscar_resumo_geral(inicio, fim):
             _, linhas = por_cliente.setdefault(registro.cliente_id, (registro.cliente_nome, []))
             linhas.append(
@@ -174,6 +182,7 @@ class ServicoRelatorio:
                     subtotal=registro.subtotal,
                 )
             )
+            nomes_itens.setdefault(registro.item_id, registro.item_nome)
 
         secoes = [
             SecaoDoCliente(
@@ -187,17 +196,74 @@ class ServicoRelatorio:
         ]
         secoes.sort(key=lambda secao: _chave_alfabetica(secao.cliente_nome))
 
+        # Montar demanda diária e colunas de itens (v1.1 fase 6)
+        registros_diarios = self._repositorio.buscar_demanda_diaria_geral(inicio, fim)
+        colunas_itens = self._montar_colunas_com_nomes(registros_diarios, nomes_itens)
+        demanda_diaria = self._montar_demanda_diaria(registros_diarios)
+
         return RelatorioGeral(
             inicio=inicio,
             fim=fim,
             secoes=tuple(secoes),
             total_pecas=sum(secao.total_pecas for secao in secoes),
             total_valor=sum((secao.total_valor for secao in secoes), ZERO),
+            demanda_diaria=demanda_diaria,
+            colunas_itens=colunas_itens,
         )
 
     # ------------------------------------------------------------------
     # Agregação
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _montar_colunas_com_nomes(
+        registros: Iterable[LinhaDaDemandaDiariaRepo],
+        nomes_itens: dict[uuid.UUID, str],
+    ) -> tuple[ColunaDeItem, ...]:
+        """Colunas de itens para a tabela de demanda diária (v1.1 fase 6).
+
+        Só os itens com ocorrência no período aparecem; mesma lógica do relatório
+        individual. Os nomes vêm do mapa construído em ``gerar_geral``.
+        """
+        itens: set[uuid.UUID] = set()
+        for registro in registros:
+            itens.add(registro.item_id)
+
+        return tuple(
+            ColunaDeItem(item_id=item_id, nome=nomes_itens[item_id])
+            for item_id in sorted(itens, key=lambda i: _chave_alfabetica(nomes_itens[i]))
+        )
+
+    @staticmethod
+    def _montar_demanda_diaria(
+        registros: Iterable[LinhaDaDemandaDiariaRepo],
+    ) -> tuple[LinhaDeDemandaDiaria, ...]:
+        """Tabela de demanda diária consolidada: todos os clientes somados por data (v1.1 fase 6).
+
+        Estrutura igual ao relatório individual (LinhaDoRelatorio), mas agregando
+        todos os clientes. Sem comanda (não faz sentido no consolidado).
+        """
+        por_data: dict[date, dict[uuid.UUID, int]] = {}
+        totais_por_data: dict[date, tuple[int, Decimal]] = {}
+
+        for registro in registros:
+            quantidades = por_data.setdefault(registro.data, {})
+            quantidades[registro.item_id] = quantidades.get(registro.item_id, 0) + registro.quantidade
+
+            pecas, valor = totais_por_data.get(registro.data, (0, ZERO))
+            totais_por_data[registro.data] = (pecas + registro.quantidade, valor + registro.total)
+
+        linhas = [
+            LinhaDeDemandaDiaria(
+                data=data_pedido,
+                quantidades=quantidades,
+                total_pecas=totais_por_data[data_pedido][0],
+                total_valor=totais_por_data[data_pedido][1],
+            )
+            for data_pedido, quantidades in sorted(por_data.items())
+        ]
+
+        return tuple(linhas)
 
     @staticmethod
     def _montar_colunas(registros: Iterable[LinhaDeFechamento]) -> tuple[ColunaDeItem, ...]:

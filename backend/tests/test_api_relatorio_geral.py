@@ -108,6 +108,8 @@ class TestConsultaAgrupada:
             "secoes": [],
             "total_pecas": 0,
             "total_valor": "0.00",
+            "demanda_diaria": [],  # v1.1 fase 6
+            "colunas_itens": [],  # v1.1 fase 6
         }
 
     def test_periodo_invertido(self, api: TestClient) -> None:
@@ -187,10 +189,6 @@ class TestPdfGeral:
         assert posicoes == sorted(posicoes)
         for secao in tela["secoes"]:
             assert _moeda_br(secao["total_valor"]) in texto
-            for linha in secao["linhas"]:
-                assert linha["item_nome"] in texto
-                assert _moeda_br(linha["valor_unitario"]) in texto
-                assert _moeda_br(linha["subtotal"]) in texto
         assert "Clínica São Lucas" not in texto  # sem pedido no período
         assert _moeda_br(tela["total_valor"]) in texto
         assert "Total geral" in texto

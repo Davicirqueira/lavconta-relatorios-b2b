@@ -50,6 +50,10 @@ class ColunaDeItemResposta(BaseModel):
     model_config = ConfigDict(frozen=True)
     item_id: uuid.UUID
     nome: str
+    valor_unitario: DinheiroTexto | None = Field(
+        default=None,
+        description="Preço usado nesta coluna (para demanda consolidada com múltiplos preços)."
+    )
 
 
 class LinhaDoRelatorioResposta(BaseModel):
@@ -179,6 +183,18 @@ class SecaoDoClienteResposta(BaseModel):
     total_valor: DinheiroTexto
 
 
+class LinhaDeDemandaDiariaResposta(BaseModel):
+    """Linha da tabela de demanda diária consolidada (v1.1 fase 6)."""
+
+    model_config = ConfigDict(frozen=True)
+    data: date
+    quantidades: dict[uuid.UUID, int] = Field(
+        description="Mapa de item_id -> quantidade. Itens ausentes não entram no mapa."
+    )
+    total_pecas: int
+    total_valor: DinheiroTexto
+
+
 class RelatorioGeralResposta(BaseModel):
     """Contrato de GET /api/relatorio/geral."""
 
@@ -189,6 +205,14 @@ class RelatorioGeralResposta(BaseModel):
     )
     total_pecas: int
     total_valor: DinheiroTexto
+    demanda_diaria: list[LinhaDeDemandaDiariaResposta] = Field(
+        default_factory=list,
+        description="Demanda diária consolidada (v1.1 fase 6): todos os clientes somados por data.",
+    )
+    colunas_itens: list[ColunaDeItemResposta] = Field(
+        default_factory=list,
+        description="Colunas de itens (v1.1 fase 6): tipos com ocorrência no período.",
+    )
 
     @classmethod
     def do_dominio(cls, relatorio: RelatorioGeral) -> "RelatorioGeralResposta":
@@ -205,4 +229,17 @@ class RelatorioGeralResposta(BaseModel):
             ],
             total_pecas=relatorio.total_pecas,
             total_valor=relatorio.total_valor,
+            demanda_diaria=[
+                LinhaDeDemandaDiariaResposta(
+                    data=linha.data,
+                    quantidades=linha.quantidades,
+                    total_pecas=linha.total_pecas,
+                    total_valor=linha.total_valor,
+                )
+                for linha in relatorio.demanda_diaria
+            ],
+            colunas_itens=[
+                ColunaDeItemResposta(item_id=col.item_id, nome=col.nome)
+                for col in relatorio.colunas_itens
+            ],
         )

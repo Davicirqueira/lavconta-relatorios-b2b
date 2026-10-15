@@ -2,7 +2,7 @@
 
 - Larguras: função pura, com medidor falso (determinístico) e com a fonte real.
 - Conteúdo: texto extraído com ``pypdf`` — rodapé "Página X de Y", cabeçalho da
-  tabela repetido, resumo por item, totais, estado vazio, PDF geral.
+  tabela repetido, totais, estado vazio, PDF geral.
 """
 
 import io
@@ -188,28 +188,26 @@ class TestPdfPorCliente:
         for texto in com_pedidos:
             assert "Total de peças" in texto
 
-    def test_resumo_por_item_e_totais(self) -> None:
+    def test_totais_aparecem_na_tabela(self) -> None:
         relatorio = _relatorio(["Lençol", "Fronha"], 3, preco="4.50")
         texto = "\n".join(_texto_por_pagina(gerar_pdf(relatorio)))
 
-        assert "Resumo por item" in texto
-        # 3 dias × 10 peças × R$ 4,50 = R$ 135,00 por item; total R$ 270,00
-        assert "R$ 4,50" in texto
-        assert "R$ 135,00" in texto
+        # 3 dias × 10 peças por item × R$ 4,50 = total R$ 270,00
         assert "R$ 270,00" in texto
-        assert "60" in texto
+        assert "60" in texto  # total de peças
 
-    def test_milhar_com_ponto_como_na_tela(self) -> None:
-        texto = "\n".join(_texto_por_pagina(gerar_pdf(_relatorio(["Lençol"], 120))))
+    def test_nao_ha_resumo_por_item(self) -> None:
+        """Sabotagem: resumo por item foi removido (v1.1 fase 6)."""
+        relatorio = _relatorio(["Lençol", "Fronha"], 3)
+        texto = "\n".join(_texto_por_pagina(gerar_pdf(relatorio)))
 
-        assert "1.200" in texto  # 120 dias × 10 peças
+        assert "Resumo por item" not in texto
 
-    def test_periodo_vazio_avisa_e_nao_mostra_resumo(self) -> None:
+    def test_periodo_vazio_avisa(self) -> None:
         relatorio = _relatorio([], 0)
         texto = "\n".join(_texto_por_pagina(gerar_pdf(relatorio)))
 
         assert "Nenhum pedido no período escolhido." in texto
-        assert "Resumo por item" not in texto
         assert "Página 1 de 1" in texto
 
     def test_nome_com_caracteres_de_marcacao(self) -> None:
@@ -260,10 +258,15 @@ class TestPdfGeral:
 
         assert "Todos os clientes" in texto
         assert texto.index("Hotel Aurora") < texto.index("Pousada Vista Verde")
-        assert "R$ 4,50" in texto and "R$ 4,80" in texto  # Lençol a dois valores
         assert "Total geral" in texto
         assert "R$ 380,60" in texto
         assert "Página 1 de 1" in texto
+
+    def test_nao_ha_resumo_por_item_no_geral(self) -> None:
+        """Sabotagem: resumo por item foi removido do PDF geral (v1.1 fase 6)."""
+        texto = "\n".join(_texto_por_pagina(gerar_pdf_geral(_geral())))
+
+        assert "Resumo por item" not in texto
 
     def test_vazio(self) -> None:
         vazio = RelatorioGeral(

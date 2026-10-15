@@ -2,6 +2,9 @@
  * RelatorioGeral — todos os clientes com pedido no período (v1.1, Req 5).
  *
  * Uma seção por cliente (item · por peça · peças · subtotal) e o total geral.
+ * Fase 6: inclui tabela de controle de demanda (todos os clientes somados
+ * por data), exibida acima das seções de cliente.
+ *
  * Tudo vem calculado da API; a tela não soma nada. Item a dois valores no
  * período aparece em duas linhas: é o que foi cobrado em cada pedido.
  */
@@ -11,11 +14,12 @@ import { EstadoVazio } from "@/components/EstadoVazio";
 import { paraExibicao } from "@/lib/datas";
 import { formatarInteiro, formatarMoeda } from "@/lib/dinheiro";
 import type { RelatorioGeral as TipoRelatorioGeral } from "@/types/api";
+import { TabelaDemandaDiaria } from "./TabelaDemandaDiaria";
 import tabela from "@/components/TabelaDados.module.css";
 import styles from "./TelaRelatorio.module.css";
 
 export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral }) {
-  const { periodo, secoes } = relatorio;
+  const { periodo, secoes, demanda_diaria, colunas_itens } = relatorio;
   const textoPeriodo = `${paraExibicao(periodo.inicio)} a ${paraExibicao(periodo.fim)}`;
 
   const cartoes = [
@@ -23,6 +27,25 @@ export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral })
     { rotulo: "Total de peças", valor: formatarInteiro(relatorio.total_pecas), Icone: Shirt, acento: styles.acentoPecas },
     { rotulo: "Clientes no período", valor: formatarInteiro(secoes.length), Icone: Building2, acento: styles.acentoLancamentos },
   ];
+
+  // Calcular totais por item para o rodapé da tabela de demanda (v1.1 fase 6)
+  const totaisPorItem: Record<string, number> = {};
+  const precosPorItem: Record<string, string> = {};
+  
+  // Coletar preços das seções (cada seção tem linhas com valor_unitario)
+  for (const secao of secoes) {
+    for (const linha of secao.linhas) {
+      // Capturar o preço do item (se houver múltiplos, fica o último)
+      precosPorItem[linha.item_id] = linha.valor_unitario;
+    }
+  }
+  
+  // Calcular totais
+  for (const linha of demanda_diaria) {
+    for (const [item_id, qtd] of Object.entries(linha.quantidades)) {
+      totaisPorItem[item_id] = (totaisPorItem[item_id] ?? 0) + qtd;
+    }
+  }
 
   return (
     <>
@@ -53,6 +76,25 @@ export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral })
         />
       ) : (
         <>
+          {/* Tabela de controle de demanda — v1.1 fase 6 */}
+          {demanda_diaria.length > 0 && (
+            <section aria-labelledby="titulo-demanda" className={styles.tabelaDemanda}>
+              <h2 id="titulo-demanda" className={styles.secaoTitulo}>
+                Controle de demanda
+              </h2>
+              <TabelaDemandaDiaria
+                linhas={demanda_diaria}
+                colunas={colunas_itens}
+                totaisPorItem={totaisPorItem}
+                totalPecas={relatorio.total_pecas}
+                totalValor={relatorio.total_valor}
+                ariaLabel={`Demanda diária de todos os clientes, ${textoPeriodo}`}
+                semComanda
+                precosPorItem={precosPorItem}
+              />
+            </section>
+          )}
+
           {secoes.map((secao) => (
             <section
               key={secao.cliente.id}

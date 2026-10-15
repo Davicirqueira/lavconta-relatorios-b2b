@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
-from app.dominio import LinhaDeFechamento, LinhaDoResumoGeral, PrecoVigente
+from app.dominio import LinhaDaDemandaDiariaRepo, LinhaDeFechamento, LinhaDoResumoGeral, PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.lancamento import Lancamento, LancamentoLinha
@@ -446,6 +446,27 @@ class RepositorioFechamentoFalso:
         """
         del inicio, fim
         return list(self.geral)
+
+    def buscar_demanda_diaria_geral(
+        self, inicio: date, fim: date
+    ) -> list[LinhaDaDemandaDiariaRepo]:
+        """Stub para testes (v1.1 fase 6): agrupa registros por (data, item)."""
+        # O falso ignora cliente_id, pode passar qualquer valor
+        registros = self.buscar_linhas_do_periodo(uuid.UUID(int=0), inicio, fim)
+        from collections import defaultdict
+
+        por_data_item: dict[tuple[date, uuid.UUID], tuple[int, Decimal]] = defaultdict(
+            lambda: (0, Decimal("0.00"))
+        )
+        for r in registros:
+            chave = (r.data, r.item_id)
+            qtd, total = por_data_item[chave]
+            por_data_item[chave] = (qtd + r.quantidade, total + r.total)
+
+        return [
+            LinhaDaDemandaDiariaRepo(data=data, item_id=item_id, quantidade=qtd, total=total)
+            for (data, item_id), (qtd, total) in sorted(por_data_item.items())
+        ]
 
     def semear_geral(
         self,

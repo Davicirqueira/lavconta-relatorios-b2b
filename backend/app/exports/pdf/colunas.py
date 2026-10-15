@@ -14,8 +14,8 @@ from app.exports.pdf.estilo import TAM_MINIMO_TOTAIS
 # (texto, negrito, tamanho em pt) -> largura em pt
 Medidor = Callable[[str, bool, float], float]
 
-ITEM_MIN: Final[float] = 48.0
-ITEM_MAX: Final[float] = 96.0
+ITEM_MIN: Final[float] = 60.0  # aumentado de 48 para 60
+ITEM_MAX: Final[float] = 110.0  # aumentado de 96 para 110
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,8 @@ def _maior(
         medir(total, True, tipo.tam_totais),
         *(medir(v, False, tipo.tam_celula) for v in valores),
     ]
-    return max(candidatos) + 2 * tipo.padding_h
+    # Aumentado o padding multiplicador de 2 para 2.5 para dar mais espaço
+    return max(candidatos) + 2.5 * tipo.padding_h
 
 
 def larguras_por_dia(

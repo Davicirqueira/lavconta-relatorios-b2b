@@ -207,6 +207,10 @@
   margin-bottom: 20px;
 }
 
+.tabelaDemanda {
+  margin-bottom: 32px;
+}
+
 .secaoTopo {
   display: flex;
   align-items: baseline;

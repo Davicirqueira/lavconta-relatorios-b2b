@@ -187,6 +187,22 @@ export interface RelatorioGeral {
   }[];
   total_pecas: number;
   total_valor: string;
+  demanda_diaria: LinhaDemandaDiaria[]; // v1.1 fase 6
+  colunas_itens: ColunaItem[]; // v1.1 fase 6
+}
+
+/** Linha da tabela de demanda diária consolidada (v1.1 fase 6). */
+export interface LinhaDemandaDiaria {
+  data: string;
+  quantidades: Record<string, number>;
+  total_pecas: number;
+  total_valor: string;
+}
+
+/** Coluna de item (usada em relatórios). */
+export interface ColunaItem {
+  item_id: string;
+  nome: string;
 }
 
 export interface Relatorio {

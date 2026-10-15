@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.dominio import LinhaDeFechamento, LinhaDoResumoGeral
+from app.dominio import LinhaDaDemandaDiariaRepo, LinhaDeFechamento, LinhaDoResumoGeral
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.lancamento import Lancamento, LancamentoLinha
@@ -159,6 +159,38 @@ class RepositorioLancamento:
                 valor_unitario=registro.valor_unitario,
                 quantidade=int(registro.quantidade),
                 subtotal=registro.subtotal,
+            )
+            for registro in self._sessao.execute(consulta)
+        ]
+
+    def buscar_demanda_diaria_geral(self, inicio: date, fim: date) -> list[LinhaDaDemandaDiariaRepo]:
+        """Demanda diária consolidada: todos os clientes somados por (data, item) — v1.1 fase 6.
+
+        Uma consulta agrupada, usada para montar a tabela de demanda diária do
+        relatório geral (todos os clientes).
+
+        ``sum(quantidade)`` e ``sum(total)`` agregam todos os clientes na mesma data.
+        Ordenado por data crescente (mesma ordem do relatório individual).
+        """
+        consulta = (
+            select(
+                Lancamento.data,
+                LancamentoLinha.item_id,
+                func.sum(LancamentoLinha.quantidade).label("quantidade"),
+                func.sum(LancamentoLinha.total).label("total"),
+            )
+            .select_from(Lancamento)
+            .join(LancamentoLinha, LancamentoLinha.lancamento_id == Lancamento.id)
+            .where(Lancamento.data >= inicio, Lancamento.data <= fim)
+            .group_by(Lancamento.data, LancamentoLinha.item_id)
+            .order_by(Lancamento.data)
+        )
+        return [
+            LinhaDaDemandaDiariaRepo(
+                data=registro.data,
+                item_id=registro.item_id,
+                quantidade=int(registro.quantidade),
+                total=registro.total,
             )
             for registro in self._sessao.execute(consulta)
         ]

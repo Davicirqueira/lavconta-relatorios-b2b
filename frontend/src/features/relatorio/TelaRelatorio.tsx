@@ -271,12 +271,14 @@ function ConteudoRelatorio({ relatorio }: { relatorio: Relatorio }) {
                     <th scope="col">Comanda</th>
                     {colunas_itens.map((coluna, i) => (
                       <th key={coluna.item_id} scope="col" className={tabela.direita}>
-                        <span
-                          className={styles.chipColuna}
-                          style={{ background: `var(${TONS_COLUNA[i % TONS_COLUNA.length]})` }}
-                          aria-hidden="true"
-                        />
-                        {coluna.nome}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                          <span
+                            className={styles.chipColuna}
+                            style={{ background: `var(${TONS_COLUNA[i % TONS_COLUNA.length]})` }}
+                            aria-hidden="true"
+                          />
+                          <span>{coluna.nome}</span>
+                        </div>
                       </th>
                     ))}
                     <th scope="col" className={tabela.direita}>
@@ -290,7 +292,7 @@ function ConteudoRelatorio({ relatorio }: { relatorio: Relatorio }) {
                 <tbody>
                   {linhas.map((linha) => (
                     <tr key={linha.lancamento_id}>
-                      <td className="num">{paraExibicao(linha.data)}</td>
+                      <td>{paraExibicao(linha.data)}</td>
                       {/* sem comanda: a célula existe, só fica vazia (Req 7.10) */}
                       <td>{linha.comanda ?? ""}</td>
                       {colunas_itens.map((coluna) => {

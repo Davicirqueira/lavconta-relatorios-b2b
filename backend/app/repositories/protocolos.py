@@ -27,7 +27,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
-from app.dominio import LinhaDeFechamento, LinhaDoResumoGeral, PrecoVigente
+from app.dominio import LinhaDaDemandaDiariaRepo, LinhaDeFechamento, LinhaDoResumoGeral, PrecoVigente
 from app.models.cliente import Cliente
 from app.models.item import Item
 from app.models.preco import Preco
@@ -141,4 +141,10 @@ class RepositorioFechamentoProtocolo(Protocol):
 
     def buscar_resumo_geral(self, inicio: date, fim: date) -> list[LinhaDoResumoGeral]:
         """Todos os clientes do período, somados por (cliente, item, valor congelado)."""
+        ...
+
+    def buscar_demanda_diaria_geral(
+        self, inicio: date, fim: date
+    ) -> list[LinhaDaDemandaDiariaRepo]:
+        """Demanda diária consolidada: todos os clientes somados por (data, item) — v1.1 fase 6."""
         ...

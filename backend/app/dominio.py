@@ -140,11 +140,15 @@ class ColunaDeItem:
     """Uma coluna de tipo de item no relatório.
 
     Só existe coluna para item com **ocorrência no período** (Req 7.7). Item do
-    catálogo que ninguém pediu naquele intervalo não vira coluna vazia.
+    catálogo que ninguém pedou naquele intervalo não vira coluna vazia.
+    
+    ``valor_unitario`` é incluído para permitir mostrar o preço no cabeçalho,
+    especialmente útil quando o mesmo item aparece com preços diferentes no período.
     """
 
     item_id: uuid.UUID
     nome: str
+    valor_unitario: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -254,6 +258,37 @@ class LinhaDoResumoGeral:
 
 
 @dataclass(frozen=True, slots=True)
+class LinhaDaDemandaDiariaRepo:
+    """Uma linha da consulta de demanda diária consolidada (v1.1 fase 6).
+
+    Resultado de agrupar por (data, item) todos os clientes do período. Estrutura
+    intermediária do repositório, não exposta na API.
+    """
+
+    data: date
+    item_id: uuid.UUID
+    quantidade: int
+    total: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class LinhaDeDemandaDiaria:
+    """Uma linha da tabela de demanda diária consolidada (v1.1 fase 6).
+
+    Soma de todos os clientes na mesma data: quantidades por tipo de item e
+    totais (peças e valor). Estrutura igual à do relatório individual, só que
+    consolidada.
+
+    ``quantidades`` é mapa de ``item_id``: item ausente no mapa = célula vazia.
+    """
+
+    data: date
+    quantidades: dict[uuid.UUID, int]
+    total_pecas: int
+    total_valor: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class SecaoDoCliente:
     """Um cliente no relatório geral: itens a cada valor e os totais dele."""
 
@@ -270,6 +305,13 @@ class RelatorioGeral:
 
     Mesmo princípio do relatório por cliente: estrutura única para tela, PDF e
     Excel, e o total geral é a soma dos totais das seções já montadas.
+
+    ``demanda_diaria`` (v1.1 fase 6): tabela consolidada por dia, igual à dos
+    relatórios individuais, somando todos os clientes. Usada na interface web e no
+    PDF geral.
+
+    ``colunas_itens`` (v1.1 fase 6): tipos de item com ocorrência no período,
+    definindo as colunas dinâmicas da tabela de demanda diária.
     """
 
     inicio: date
@@ -277,6 +319,8 @@ class RelatorioGeral:
     secoes: tuple[SecaoDoCliente, ...]
     total_pecas: int
     total_valor: Decimal
+    demanda_diaria: tuple[LinhaDeDemandaDiaria, ...] = ()
+    colunas_itens: tuple[ColunaDeItem, ...] = ()
 
     @property
     def vazio(self) -> bool:
