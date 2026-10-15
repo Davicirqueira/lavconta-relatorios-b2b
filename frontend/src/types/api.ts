@@ -203,6 +203,7 @@ export interface LinhaDemandaDiaria {
 export interface ColunaItem {
   item_id: string;
   nome: string;
+  valor_unitario?: string;
 }
 
 export interface Relatorio {

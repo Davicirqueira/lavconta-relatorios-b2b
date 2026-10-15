@@ -32,18 +32,21 @@ export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral })
   const totaisPorItem: Record<string, number> = {};
   const precosPorItem: Record<string, string> = {};
   
-  // Coletar preços das seções (cada seção tem linhas com valor_unitario)
-  for (const secao of secoes) {
-    for (const linha of secao.linhas) {
-      // Capturar o preço do item (se houver múltiplos, fica o último)
-      precosPorItem[linha.item_id] = linha.valor_unitario;
+  // Coletar preços das colunas (vêm da API)
+  for (const coluna of colunas_itens) {
+    if (coluna.valor_unitario) {
+      precosPorItem[coluna.item_id] = coluna.valor_unitario;
     }
   }
   
-  // Calcular totais
-  for (const linha of demanda_diaria) {
-    for (const [item_id, qtd] of Object.entries(linha.quantidades)) {
-      totaisPorItem[item_id] = (totaisPorItem[item_id] ?? 0) + qtd;
+  // Calcular totais (com verificação defensiva)
+  if (demanda_diaria && Array.isArray(demanda_diaria)) {
+    for (const linha of demanda_diaria) {
+      if (linha.quantidades) {
+        for (const [item_id, qtd] of Object.entries(linha.quantidades)) {
+          totaisPorItem[item_id] = (totaisPorItem[item_id] ?? 0) + qtd;
+        }
+      }
     }
   }
 

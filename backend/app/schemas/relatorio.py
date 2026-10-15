@@ -239,7 +239,11 @@ class RelatorioGeralResposta(BaseModel):
                 for linha in relatorio.demanda_diaria
             ],
             colunas_itens=[
-                ColunaDeItemResposta(item_id=col.item_id, nome=col.nome)
+                ColunaDeItemResposta(
+                    item_id=col.item_id, 
+                    nome=col.nome,
+                    valor_unitario=col.valor_unitario
+                )
                 for col in relatorio.colunas_itens
             ],
         )
