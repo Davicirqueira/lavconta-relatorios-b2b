@@ -450,22 +450,29 @@ class RepositorioFechamentoFalso:
     def buscar_demanda_diaria_geral(
         self, inicio: date, fim: date
     ) -> list[LinhaDaDemandaDiariaRepo]:
-        """Stub para testes (v1.1 fase 6): agrupa registros por (data, item)."""
+        """Stub para testes (v1.1 fase 6): agrupa registros por (data, nome_item).
+        
+        Consolida por NOME (não por ID), simulando o comportamento do repositório
+        real que agrupa "Toalha" de clientes diferentes em uma única linha.
+        """
         # O falso ignora cliente_id, pode passar qualquer valor
         registros = self.buscar_linhas_do_periodo(uuid.UUID(int=0), inicio, fim)
         from collections import defaultdict
 
-        por_data_item: dict[tuple[date, uuid.UUID], tuple[int, Decimal]] = defaultdict(
-            lambda: (0, Decimal("0.00"))
-        )
+        por_data_nome: dict[tuple[date, str], int] = defaultdict(int)
         for r in registros:
-            chave = (r.data, r.item_id)
-            qtd, total = por_data_item[chave]
-            por_data_item[chave] = (qtd + r.quantidade, total + r.total)
+            chave = (r.data, r.item_nome)
+            por_data_nome[chave] += r.quantidade
 
         return [
-            LinhaDaDemandaDiariaRepo(data=data, item_id=item_id, quantidade=qtd, total=total)
-            for (data, item_id), (qtd, total) in sorted(por_data_item.items())
+            LinhaDaDemandaDiariaRepo(
+                data=data,
+                item_id=uuid.UUID(int=hash(nome) & 0xFFFFFFFFFFFFFFFF),  # ID sintético
+                item_nome=nome,
+                quantidade=qtd,
+                total=Decimal("0"),  # não usado
+            )
+            for (data, nome), qtd in sorted(por_data_nome.items())
         ]
 
     def semear_geral(

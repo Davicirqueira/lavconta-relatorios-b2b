@@ -283,3 +283,43 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* --- Melhorias visuais: Heatmap e totalizadores (v1.1 fase 6) --- */
+
+.badgePico,
+.badgeVale {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--raio-sm);
+  flex-shrink: 0;
+}
+
+.badgePico {
+  background: var(--sucesso-suave);
+  color: var(--sucesso-forte);
+}
+
+.badgeVale {
+  background: var(--alerta-suave);
+  color: var(--alerta-forte);
+}
+
+.totalComBarra {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.barraTotal {
+  height: 4px;
+  border-radius: 2px;
+  transition: width var(--dur-padrao) var(--ease-padrao);
+  min-width: 2px;
+}

@@ -30,14 +30,6 @@ export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral })
 
   // Calcular totais por item para o rodapé da tabela de demanda (v1.1 fase 6)
   const totaisPorItem: Record<string, number> = {};
-  const precosPorItem: Record<string, string> = {};
-  
-  // Coletar preços das colunas (vêm da API)
-  for (const coluna of colunas_itens) {
-    if (coluna.valor_unitario) {
-      precosPorItem[coluna.item_id] = coluna.valor_unitario;
-    }
-  }
   
   // Calcular totais (com verificação defensiva)
   if (demanda_diaria && Array.isArray(demanda_diaria)) {
@@ -49,6 +41,9 @@ export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral })
       }
     }
   }
+
+  // Total de peças do período (para o rodapé da tabela de demanda)
+  const totalPecasDemanda = Object.values(totaisPorItem).reduce((acc, qtd) => acc + qtd, 0);
 
   return (
     <>
@@ -89,11 +84,10 @@ export function RelatorioGeral({ relatorio }: { relatorio: TipoRelatorioGeral })
                 linhas={demanda_diaria}
                 colunas={colunas_itens}
                 totaisPorItem={totaisPorItem}
-                totalPecas={relatorio.total_pecas}
-                totalValor={relatorio.total_valor}
-                ariaLabel={`Demanda diária de todos os clientes, ${textoPeriodo}`}
+                totalPecas={totalPecasDemanda}
+                ariaLabel={`Controle de demanda de todos os clientes, ${textoPeriodo}`}
                 semComanda
-                precosPorItem={precosPorItem}
+                controleDemanda
               />
             </section>
           )}

@@ -164,33 +164,43 @@ class RepositorioLancamento:
         ]
 
     def buscar_demanda_diaria_geral(self, inicio: date, fim: date) -> list[LinhaDaDemandaDiariaRepo]:
-        """Demanda diária consolidada: todos os clientes somados por (data, item) — v1.1 fase 6.
+        """Demanda diária consolidada: todos os clientes somados por (data, nome_item) — v1.1 fase 6.
 
-        Uma consulta agrupada, usada para montar a tabela de demanda diária do
+        Uma consulta agrupada, usada para montar a tabela de controle de demanda do
         relatório geral (todos os clientes).
 
-        ``sum(quantidade)`` e ``sum(total)`` agregam todos os clientes na mesma data.
+        ``sum(quantidade)`` agrega todos os clientes na mesma data. Itens do mesmo
+        tipo com valores diferentes são consolidados (o preço não entra no group by).
+        
+        **AGRUPA POR NOME, NÃO POR ID**: Clientes diferentes têm catálogos próprios,
+        então "Toalha" do Cliente A tem item_id diferente de "Toalha" do Cliente B.
+        Para controle operacional consolidado, somamos por nome textual.
+        
         Ordenado por data crescente (mesma ordem do relatório individual).
+
+        Total em R$ não é retornado: controle de demanda é volume de produção,
+        não faturamento.
         """
         consulta = (
             select(
                 Lancamento.data,
-                LancamentoLinha.item_id,
+                Item.nome.label("item_nome"),
                 func.sum(LancamentoLinha.quantidade).label("quantidade"),
-                func.sum(LancamentoLinha.total).label("total"),
             )
             .select_from(Lancamento)
             .join(LancamentoLinha, LancamentoLinha.lancamento_id == Lancamento.id)
+            .join(Item, Item.id == LancamentoLinha.item_id)
             .where(Lancamento.data >= inicio, Lancamento.data <= fim)
-            .group_by(Lancamento.data, LancamentoLinha.item_id)
-            .order_by(Lancamento.data)
+            .group_by(Lancamento.data, Item.nome)
+            .order_by(Lancamento.data, Item.nome)
         )
         return [
             LinhaDaDemandaDiariaRepo(
                 data=registro.data,
-                item_id=registro.item_id,
+                item_id=uuid.UUID(int=hash(registro.item_nome) & 0xFFFFFFFFFFFFFFFF),  # ID sintético do nome
+                item_nome=registro.item_nome,
                 quantidade=int(registro.quantidade),
-                total=registro.total,
+                total=Decimal("0"),  # não usado no controle de demanda
             )
             for registro in self._sessao.execute(consulta)
         ]

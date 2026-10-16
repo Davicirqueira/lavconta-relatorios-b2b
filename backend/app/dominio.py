@@ -261,14 +261,19 @@ class LinhaDoResumoGeral:
 class LinhaDaDemandaDiariaRepo:
     """Uma linha da consulta de demanda diária consolidada (v1.1 fase 6).
 
-    Resultado de agrupar por (data, item) todos os clientes do período. Estrutura
-    intermediária do repositório, não exposta na API.
+    Resultado de agrupar por (data, nome_item) todos os clientes do período.
+    
+    ``item_id`` é sintético (hash do nome): serve apenas como chave única para
+    o frontend mapear colunas. O agrupamento real é por ``item_nome``.
+    
+    Estrutura intermediária do repositório, não exposta na API.
     """
 
     data: date
-    item_id: uuid.UUID
+    item_id: uuid.UUID  # sintético (hash do nome)
+    item_nome: str
     quantidade: int
-    total: Decimal
+    total: Decimal  # não usado no controle de demanda
 
 
 @dataclass(frozen=True, slots=True)

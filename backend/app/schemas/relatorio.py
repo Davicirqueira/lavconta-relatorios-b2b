@@ -241,8 +241,7 @@ class RelatorioGeralResposta(BaseModel):
             colunas_itens=[
                 ColunaDeItemResposta(
                     item_id=col.item_id, 
-                    nome=col.nome,
-                    valor_unitario=col.valor_unitario
+                    nome=col.nome
                 )
                 for col in relatorio.colunas_itens
             ],

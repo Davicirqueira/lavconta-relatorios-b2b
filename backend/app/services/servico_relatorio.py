@@ -198,7 +198,7 @@ class ServicoRelatorio:
 
         # Montar demanda diária e colunas de itens (v1.1 fase 6)
         registros_diarios = self._repositorio.buscar_demanda_diaria_geral(inicio, fim)
-        colunas_itens = self._montar_colunas_com_nomes(registros_diarios, nomes_itens)
+        colunas_itens = self._montar_colunas_demanda(registros_diarios)
         demanda_diaria = self._montar_demanda_diaria(registros_diarios)
 
         return RelatorioGeral(
@@ -216,49 +216,61 @@ class ServicoRelatorio:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _montar_colunas_com_nomes(
+    def _montar_colunas_demanda(
         registros: Iterable[LinhaDaDemandaDiariaRepo],
-        nomes_itens: dict[uuid.UUID, str],
     ) -> tuple[ColunaDeItem, ...]:
-        """Colunas de itens para a tabela de demanda diária (v1.1 fase 6).
+        """Colunas de itens para controle de demanda (v1.1 fase 6).
 
-        Só os itens com ocorrência no período aparecem; mesma lógica do relatório
-        individual. Os nomes vêm do mapa construído em ``gerar_geral``.
+        Agrupa por NOME do item (não por ID), já que clientes diferentes têm
+        catálogos próprios. "Toalha" do Cliente A + "Toalha" do Cliente B = 
+        uma única coluna "Toalha" no controle operacional.
+        
+        O item_id usado é o primeiro encontrado para cada nome (hash sintético).
         """
-        itens: set[uuid.UUID] = set()
+        colunas_por_nome: dict[str, uuid.UUID] = {}
         for registro in registros:
-            itens.add(registro.item_id)
+            if registro.item_nome not in colunas_por_nome:
+                colunas_por_nome[registro.item_nome] = registro.item_id
 
         return tuple(
-            ColunaDeItem(item_id=item_id, nome=nomes_itens[item_id])
-            for item_id in sorted(itens, key=lambda i: _chave_alfabetica(nomes_itens[i]))
+            ColunaDeItem(item_id=item_id, nome=nome)
+            for nome, item_id in sorted(
+                colunas_por_nome.items(), 
+                key=lambda par: _chave_alfabetica(par[0])
+            )
         )
 
     @staticmethod
     def _montar_demanda_diaria(
         registros: Iterable[LinhaDaDemandaDiariaRepo],
     ) -> tuple[LinhaDeDemandaDiaria, ...]:
-        """Tabela de demanda diária consolidada: todos os clientes somados por data (v1.1 fase 6).
+        """Tabela de controle de demanda diária: volume de produção por tipo de item (v1.1 fase 6).
 
-        Estrutura igual ao relatório individual (LinhaDoRelatorio), mas agregando
-        todos os clientes. Sem comanda (não faz sentido no consolidado).
+        Consolida todos os clientes somando quantidades por (data, nome_item).
+        O repositório já agrupa por nome, então cada (data, item_id sintético)
+        aparece uma vez.
+        
+        Sem valores monetários: é controle de volume operacional, não faturamento.
+        Sem comanda (não faz sentido no consolidado).
         """
         por_data: dict[date, dict[uuid.UUID, int]] = {}
-        totais_por_data: dict[date, tuple[int, Decimal]] = {}
+        totais_pecas_por_data: dict[date, int] = {}
 
         for registro in registros:
             quantidades = por_data.setdefault(registro.data, {})
-            quantidades[registro.item_id] = quantidades.get(registro.item_id, 0) + registro.quantidade
+            # item_id é sintético (hash do nome), então já está consolidado
+            quantidades[registro.item_id] = registro.quantidade
 
-            pecas, valor = totais_por_data.get(registro.data, (0, ZERO))
-            totais_por_data[registro.data] = (pecas + registro.quantidade, valor + registro.total)
+            totais_pecas_por_data[registro.data] = (
+                totais_pecas_por_data.get(registro.data, 0) + registro.quantidade
+            )
 
         linhas = [
             LinhaDeDemandaDiaria(
                 data=data_pedido,
                 quantidades=quantidades,
-                total_pecas=totais_por_data[data_pedido][0],
-                total_valor=totais_por_data[data_pedido][1],
+                total_pecas=totais_pecas_por_data[data_pedido],
+                total_valor=ZERO,  # não usado no controle de demanda
             )
             for data_pedido, quantidades in sorted(por_data.items())
         ]
