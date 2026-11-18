@@ -1,0 +1,56 @@
+# =============================================================================
+# Keep-Alive — Mantém o projeto Supabase ativo
+# =============================================================================
+#
+# O Supabase pausa projetos no plano Free após 7 dias de inatividade.
+# Este workflow executa uma query simples a cada 5 dias para manter o banco ativo.
+#
+# Configuração necessária:
+#   1. Adicionar secret DATABASE_URL no repositório GitHub:
+#      Settings > Secrets and variables > Actions > New repository secret
+#      Nome: DATABASE_URL
+#      Valor: mesma string de conexão usada no backend/.env
+#
+# Frequência: a cada 5 dias (margem de segurança de 2 dias antes da pausa)
+#
+# =============================================================================
+
+name: Keep Supabase Active
+
+on:
+  schedule:
+    # Executa às 12:00 UTC a cada 5 dias
+    # Formato: minuto hora dia-do-mês mês dia-da-semana
+    # */5 nos dias = a cada 5 dias
+    - cron: '0 12 */5 * *'
+  
+  # Permite execução manual via interface do GitHub (para testes)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping database
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          pip install psycopg[binary]
+      
+      - name: Executar ping no banco
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/keep_alive.py
+      
+      - name: Resultado
+        if: success()
+        run: echo "✅ Banco Supabase mantido ativo com sucesso"

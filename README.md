@@ -117,3 +117,29 @@ Migração destrutiva (drop, troca de tipo com perda) exige plano de rollback an
   faria o uvicorn adotar o primeiro IP do cabeçalho, que o cliente controla, e o
   limite poderia ser contornado; por isso não foi ativado. Os limites atuais
   (60/min em escrita, 30/min em exportação) folgam para a equipe da v1.
+
+## Keep-Alive do Supabase (plano Free)
+
+O Supabase pausa projetos no plano Free após 7 dias de inatividade (sem conexões
+ao banco). Para evitar isso, o repositório tem um workflow do GitHub Actions
+(`.github/workflows/keep-alive.yml`) que executa uma query simples a cada 5 dias.
+
+### Configuração (obrigatória para funcionar)
+
+1. No GitHub, vá em **Settings** → **Secrets and variables** → **Actions**
+2. Clique em **New repository secret**
+3. Adicione o secret:
+   - **Name:** `DATABASE_URL`
+   - **Value:** mesma string de conexão usada no backend (Session Pooler do Supabase)
+
+O workflow roda automaticamente. Para testar manualmente:
+- **Actions** → **Keep Supabase Active** → **Run workflow**
+
+Se o workflow falhar, você receberá email do GitHub. Verifique se:
+- O secret `DATABASE_URL` está configurado corretamente
+- O banco Supabase está acessível (não pausado manualmente)
+
+**Alternativas ao keep-alive:**
+- Upgrade para plano Pro (US$ 25/mês): projetos pagos nunca pausam
+- Uso regular: se a equipe usar o sistema pelo menos uma vez por semana, o
+  keep-alive não é necessário (mas funciona como seguro)

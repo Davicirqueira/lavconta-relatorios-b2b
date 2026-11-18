@@ -1,0 +1,4 @@
+# Scripts auxiliares podem gerar arquivos temporários
+*.pyc
+__pycache__/
+*.log
